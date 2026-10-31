@@ -1,0 +1,6 @@
+{
+  "appId": "in.grampanchayat.citizen",
+  "appName": "माझी ग्रामपंचायत",
+  "webDir": "www",
+  "server": { "androidScheme": "https" }
+}

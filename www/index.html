@@ -1,0 +1,230 @@
+<!doctype html>
+<html lang="mr"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#0D2B5E"><link rel="manifest" href="manifest.json">
+<title>माझी ग्रामपंचायत</title>
+<style>
+*{box-sizing:border-box}body{margin:0;font-family:'Noto Sans Devanagari',Mangal,system-ui,sans-serif;background:#eef2f7;color:#1b1b1b;font-size:15px}
+header{background:#0D2B5E;color:#fff;padding:12px 14px;display:flex;align-items:center;gap:8px;position:sticky;top:0;z-index:5}
+header h1{font-size:16px;margin:0;flex:1;line-height:1.3}header button{background:#ffffff22;color:#fff;border:0;border-radius:6px;padding:6px 10px;font-size:13px}
+main{max-width:640px;margin:0 auto;padding:12px 12px 80px}
+.card{background:#fff;border-radius:12px;padding:14px;margin-bottom:12px;box-shadow:0 1px 4px #0002}
+h2{font-size:16px;margin:0 0 10px;color:#0D2B5E}
+label{display:block;font-size:12.5px;color:#555;margin:9px 0 3px}
+input,select,textarea{width:100%;padding:10px;border:1px solid #bbb;border-radius:8px;font:inherit;background:#fff}
+button.p{background:#0D2B5E;color:#fff;border:0;border-radius:8px;padding:11px 16px;font:inherit;font-weight:700;width:100%;margin-top:12px}
+button.s{background:#fff;color:#0D2B5E;border:1.5px solid #0D2B5E;border-radius:8px;padding:8px 12px;font:inherit}
+button:disabled{opacity:.5}
+nav{position:fixed;bottom:0;left:0;right:0;background:#fff;display:flex;border-top:1px solid #ccc;z-index:5}
+nav button{flex:1;border:0;background:none;padding:8px 2px;font:inherit;font-size:11.5px;color:#555}nav button.on{color:#0D2B5E;font-weight:700;border-top:3px solid #0D2B5E}
+nav button span{display:block;font-size:19px}
+.msg{padding:9px 11px;border-radius:8px;font-size:13px;margin-top:10px}.err{background:#fde8e8;color:#b71c1c}.ok{background:#e6f4ea;color:#1a5c2a}.inf{background:#e8f0fe;color:#0D2B5E}
+.row{display:flex;gap:8px;align-items:center}.badge{font-size:12px;font-weight:700;padding:2px 8px;border-radius:10px}
+.b-p{background:#fff3e0;color:#e65100}.b-a{background:#e6f4ea;color:#1a5c2a}.b-r{background:#fde8e8;color:#b71c1c}
+.qr{text-align:center}.qr img{max-width:230px;width:100%;border:1px solid #ddd;border-radius:8px}
+iframe{width:100%;height:78vh;border:0;border-radius:8px;background:#fff}
+.hidden{display:none}small{color:#666}
+</style></head><body>
+<header><h1 id="ttl">🏛️ माझी ग्रामपंचायत</h1><button id="chg" class="hidden" onclick="changeVillage()">गाव बदला</button><button id="lo" class="hidden" onclick="logout()">बाहेर पडा</button></header>
+<main id="m"></main>
+<nav id="nav" class="hidden"></nav>
+<script src="config.js"></script>
+<script>
+var $=function(i){return document.getElementById(i);},E=function(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});};
+var LS={g:function(k){try{return JSON.parse(localStorage.getItem(k));}catch(e){return null;}},s:function(k,v){try{localStorage.setItem(k,JSON.stringify(v));}catch(e){}},d:function(k){try{localStorage.removeItem(k);}catch(e){}}};
+var IDX={states:[]},VC={},VTOK=0,DIR={directory:{},gps:[]},GP=null,SES=null,CFG=null,TAB='home',MOCK=(location.search.match(/[?&]mock=([^&]+)/)||[])[1];
+var U=MOCK?{auth:MOCK+'/idt',tok:MOCK+'/tok',fs:MOCK+'/fs'}:{auth:'https://identitytoolkit.googleapis.com',tok:'https://securetoken.googleapis.com',fs:'https://firestore.googleapis.com/v1'};
+// ── Firestore/Auth REST ──
+function http(method,url,body,hdr,form){
+  var o={method:method,headers:Object.assign(form?{'Content-Type':'application/x-www-form-urlencoded'}:{'Content-Type':'application/json'},hdr||{})};
+  if(body!=null)o.body=form?body:JSON.stringify(body);
+  return fetch(url,o).then(function(r){return r.text().then(function(t){var j={};try{j=t?JSON.parse(t):{};}catch(e){}
+    if(!r.ok){var m=(j.error&&(j.error.message||j.error.status))||('HTTP '+r.status);throw Object.assign(new Error(m),{http:r.status});}return j;});});
+}
+function errText(e){var m=String(e&&e.message||e);
+  var t={EMAIL_EXISTS:'हा मोबाईल आधीच नोंदणीकृत आहे — "लॉगिन" वापरा',EMAIL_NOT_FOUND:'हा मोबाईल नोंदणीकृत नाही — आधी "नवीन नोंदणी" करा',INVALID_PASSWORD:'पासवर्ड चुकीचा आहे',INVALID_LOGIN_CREDENTIALS:'मोबाईल किंवा पासवर्ड चुकीचा आहे',WEAK_PASSWORD:'पासवर्ड किमान ६ अक्षरांचा हवा',OPERATION_NOT_ALLOWED:'ग्रामपंचायतीने Email/Password सुरू केलेले नाही',TOO_MANY_ATTEMPTS_TRY_LATER:'खूप प्रयत्न झाले — थोड्या वेळाने प्रयत्न करा'};
+  for(var k in t)if(m.indexOf(k)>=0)return t[k];
+  if(/Failed to fetch|NetworkError|Load failed/i.test(m))return 'इंटरनेट जोडणी तपासा';
+  if(e&&e.http===403||/PERMISSION_DENIED|insufficient/i.test(m))return 'परवानगी नाही (ग्रामपंचायतीचे नियम तपासा)';
+  return m;}
+function fsEnc(v){if(v==null)return{nullValue:null};if(typeof v==='string')return{stringValue:v};if(typeof v==='boolean')return{booleanValue:v};
+  if(typeof v==='number')return Math.floor(v)===v?{integerValue:String(v)}:{doubleValue:v};
+  if(Array.isArray(v))return{arrayValue:{values:v.map(fsEnc)}};var f={};Object.keys(v).forEach(function(k){if(v[k]!==undefined)f[k]=fsEnc(v[k]);});return{mapValue:{fields:f}};}
+function fsDec(f){if(!f)return null;if('stringValue' in f)return f.stringValue;if('integerValue' in f)return Number(f.integerValue);if('doubleValue' in f)return f.doubleValue;if('booleanValue' in f)return f.booleanValue;if('timestampValue' in f)return f.timestampValue;
+  if('arrayValue' in f)return((f.arrayValue||{}).values||[]).map(fsDec);if('mapValue' in f){var o={},m=(f.mapValue||{}).fields||{};Object.keys(m).forEach(function(k){o[k]=fsDec(m[k]);});return o;}return null;}
+function docOut(d){var o={},fl=d.fields||{};Object.keys(fl).forEach(function(k){o[k]=fsDec(fl[k]);});o._id=String(d.name||'').split('/').pop();return o;}
+function fsBase(){return U.fs+'/projects/'+encodeURIComponent(GP.p)+'/databases/(default)/documents';}
+function authUrl(op){return U.auth+(MOCK?'/accounts:':'/v1/accounts:')+op+'?key='+encodeURIComponent(GP.k);}
+function token(){
+  if(!SES)return Promise.reject(new Error('लॉगिन आवश्यक'));
+  if(Date.now()<SES.exp-60000)return Promise.resolve(SES.idToken);
+  return http('POST',U.tok+(MOCK?'/token':'/v1/token')+'?key='+encodeURIComponent(GP.k),'grant_type=refresh_token&refresh_token='+encodeURIComponent(SES.refreshToken),null,true).then(function(r){
+    SES.idToken=r.id_token;SES.refreshToken=r.refresh_token||SES.refreshToken;SES.exp=Date.now()+(+r.expires_in||3600)*1000;LS.s(sesKey(),SES);return SES.idToken;});
+}
+function sesKey(){return 'GPAPP_SES_'+GP.p;}
+function fsGet(path){return token().then(function(t){return http('GET',fsBase()+'/'+path,null,{Authorization:'Bearer '+t});}).then(docOut,function(e){if(e.http===404)return null;throw e;});}
+function fsCreate(col,id,obj){var f={};Object.keys(obj).forEach(function(k){if(obj[k]!==undefined)f[k]=fsEnc(obj[k]);});
+  return token().then(function(t){return http('POST',fsBase()+'/'+col+'?documentId='+encodeURIComponent(id),{fields:f},{Authorization:'Bearer '+t});});}
+function fsMine(){return token().then(function(t){return http('POST',fsBase()+':runQuery',{structuredQuery:{from:[{collectionId:'gpapp_req'}],where:{fieldFilter:{field:{fieldPath:'uid'},op:'EQUAL',value:{stringValue:SES.uid}}}}},{Authorization:'Bearer '+t});}).then(function(r){
+  return (r||[]).filter(function(x){return x.document;}).map(function(x){return docOut(x.document);});});}
+function rid(){var a='abcdefghijklmnopqrstuvwxyz0123456789',s='';for(var i=0;i<20;i++)s+=a[Math.floor(Math.random()*a.length)];return s;}
+function msg(id,t,c){var el=$(id);if(el)el.innerHTML=t?'<div class="msg '+(c||'inf')+'">'+E(t)+'</div>':'';}
+// ── इमेज → JPEG (लहान) ──
+function pickImg(file,maxW,q,cb){var rd=new FileReader();rd.onload=function(){var im=new Image();im.onload=function(){var r=Math.min(1,maxW/Math.max(im.width,im.height)),c=document.createElement('canvas');c.width=Math.round(im.width*r);c.height=Math.round(im.height*r);
+  var x=c.getContext('2d');x.fillStyle='#fff';x.fillRect(0,0,c.width,c.height);x.drawImage(im,0,0,c.width,c.height);var u=c.toDataURL('image/jpeg',q);
+  if(u.length>260000)u=c.toDataURL('image/jpeg',q*0.6);cb(u);};im.onerror=function(){cb('');};im.src=rd.result;};rd.onerror=function(){cb('');};rd.readAsDataURL(file);}
+// ── सुरुवात ──
+function boot(){
+  fetch((window.GP_REMOTE||'')+'directory.json?'+Date.now()).then(function(r){return r.json();}).catch(function(){return fetch('directory.json').then(function(r){return r.json();});}).catch(function(){return LS.g('GPAPP_DIR')||{};}).then(function(d){
+    DIR={directory:d.directory||{},gps:d.gps||[]};LS.s('GPAPP_DIR',d);
+    return fetch('directory-index.json').then(function(r){return r.json();}).then(function(x){try{localStorage.setItem('GPAPP_IDX',JSON.stringify(x));}catch(e){}return x;}).catch(function(){return LS.g('GPAPP_IDX')||{states:[]};});
+  }).then(function(ix){
+    IDX=ix||{states:[]};
+    var sv=LS.g('GPAPP_GP');if(sv&&sv.p){GP=sv;SES=LS.g(sesKey());return SES?enter():authScreen();}
+    pickScreen();
+  });
+  if('serviceWorker' in navigator&&!MOCK)navigator.serviceWorker.register('sw.js').catch(function(){});
+}
+function opts(list,sel){return '<option value="">— निवडा —</option>'+list.map(function(x){var mr=x.mr!==undefined?x.mr:x,en=x.en||'';return '<option value="'+E(mr)+'"'+(mr===sel?' selected':'')+'>'+E(en&&en!==mr?en+' — '+mr:mr)+'</option>';}).join('');}
+// यादी: राज्य → जिल्हा → तालुका → गाव; प्रत्येक नाव "English — मराठी" (किंमत = मराठी नाव). गावे जिल्हानिहाय फाईलमधून लोड होतात.
+function srt(a){return a.sort(function(x,y){return (x.en||x.mr).toLowerCase()<(y.en||y.mr).toLowerCase()?-1:1;});}
+function mergeNames(items,custom){var have={};items.forEach(function(x){have[x.mr]=1;});Object.keys(custom||{}).forEach(function(k){if(!have[k]){items.push({mr:k,en:''});have[k]=1;}});return srt(items);}
+function stObj(s){return (IDX.states||[]).filter(function(x){return x.mr===s;})[0];}
+function dsObj(s,d){var o=stObj(s);return o&&(o.d||[]).filter(function(x){return x.mr===d;})[0];}
+function tlObj(s,d,t){var o=dsObj(s,d);return o&&(o.t||[]).filter(function(x){return x.mr===t;})[0];}
+function stList(){return mergeNames((IDX.states||[]).map(function(x){return {mr:x.mr,en:x.en};}),DIR.directory);}
+function dsList(s){var o=stObj(s);return mergeNames(((o&&o.d)||[]).map(function(x){return {mr:x.mr,en:x.en};}),DIR.directory[s]);}
+function tlList(s,d){var o=dsObj(s,d);return mergeNames(((o&&o.t)||[]).map(function(x){return {mr:x.mr,en:x.en};}),(DIR.directory[s]||{})[d]);}
+function getVillages(s,d,t,cb){
+  var cust=((((DIR.directory[s]||{})[d]||{})[t])||[]).map(function(x){return {mr:x,en:''};});
+  var so=stObj(s),dobj=dsObj(s,d),to=tlObj(s,d,t);
+  if(!(so&&dobj&&to))return cb(srt(cust),true);
+  var key=so.code+'_'+dobj.c;
+  var done=function(j,ok){var out=((j&&j[to.c])||[]).map(function(v){return {mr:v[1],en:v[0]};}),have={};out.forEach(function(x){have[x.mr]=1;});cust.forEach(function(x){if(!have[x.mr])out.push(x);});cb(srt(out),ok);};
+  if(VC[key])return done(VC[key],true);
+  fetch('dir/'+key+'.json').then(function(r){if(!r.ok)throw 0;return r.json();}).then(function(j){VC[key]=j;done(j,true);}).catch(function(){done(null,false);});
+}
+function pickScreen(){
+  $('nav').classList.add('hidden');$('lo').classList.add('hidden');$('chg').classList.add('hidden');$('ttl').textContent='🏛️ माझी ग्रामपंचायत';
+  $('m').innerHTML='<div class="card"><h2>तुमचे गाव निवडा</h2><label>राज्य / State</label><select id="ps" onchange="pc(1)"></select><label>जिल्हा / District</label><select id="pd" onchange="pc(2)"></select><label>तालुका / Taluka</label><select id="pt" onchange="pc(3)"></select><label>गाव / Village</label><select id="pv" onchange="pc(4)"></select><div id="pm"></div><button class="p" onclick="pgo()">पुढे जा</button></div>';
+  $('ps').innerHTML=opts(stList());pc(1);
+}
+function pc(l){var s=$('ps').value;
+  if(l<=1)$('pd').innerHTML=opts(s?dsList(s):[]);
+  var d=$('pd').value;
+  if(l<=2)$('pt').innerHTML=opts(s&&d?tlList(s,d):[]);
+  var t=$('pt').value;
+  if(l<=3){var tok=++VTOK;
+    if(!(s&&d&&t)){$('pv').innerHTML=opts([]);return;}
+    $('pv').innerHTML='<option value="">⏳ गावे लोड होत आहेत…</option>';
+    getVillages(s,d,t,function(list,ok){if(tok!==VTOK)return;$('pv').innerHTML=opts(list);if(!ok)msg('pm','इंटरनेट नसल्याने सर्व गावे लोड झाली नाहीत — नेट चालू करून पुन्हा निवडा.','err');else msg('pm','');});}
+}
+function pgo(){var s=$('ps').value,d=$('pd').value,t=$('pt').value,v=$('pv').value;if(!(s&&d&&t&&v))return msg('pm','राज्य, जिल्हा, तालुका व गाव चारही निवडा','err');
+  var g=DIR.gps.filter(function(x){return x.s===s&&x.d===d&&x.t===t&&x.v===v;})[0];
+  if(!g||!g.p||!g.k)return msg('pm','"'+v+'" ग्रामपंचायतीने अजून ॲप सुरू केलेले नाही. लवकरच उपलब्ध होईल.','inf');
+  GP=g;LS.s('GPAPP_GP',g);SES=LS.g(sesKey());SES?enter():authScreen();}
+function changeVillage(){LS.d('GPAPP_GP');GP=null;SES=null;CFG=null;pickScreen();}
+function logout(){if(GP)LS.d(sesKey());SES=null;authScreen();}
+// ── लॉगिन / नोंदणी ──
+var AUTHMODE='in';
+function authScreen(){
+  $('nav').classList.add('hidden');$('lo').classList.add('hidden');$('chg').classList.remove('hidden');$('ttl').textContent='🏛️ ग्रामपंचायत '+GP.v;
+  $('m').innerHTML='<div class="card"><div class="row" style="margin-bottom:6px"><button class="s" style="flex:1;'+(AUTHMODE==='in'?'background:#0D2B5E;color:#fff':'')+'" onclick="AUTHMODE=\'in\';authScreen()">लॉगिन</button><button class="s" style="flex:1;'+(AUTHMODE==='up'?'background:#0D2B5E;color:#fff':'')+'" onclick="AUTHMODE=\'up\';authScreen()">नवीन नोंदणी</button></div>'+
+   (AUTHMODE==='up'?'<label>तुमचे पूर्ण नाव</label><input id="an" autocomplete="name">':'')+'<label>मोबाईल क्रमांक (१०अंकी)</label><input id="am" inputmode="numeric" maxlength="10" autocomplete="tel"><label>पासवर्ड (किमान ६ अक्षरे)</label><input id="ap" type="password" autocomplete="'+(AUTHMODE==='up'?'new-password':'current-password')+'"><div id="aM"></div><button class="p" id="ab" onclick="authGo()">'+(AUTHMODE==='up'?'नोंदणी करा':'लॉगिन करा')+'</button><small style="display:block;margin-top:8px">पासवर्ड विसरल्यास ग्रामपंचायत कार्यालयाशी संपर्क करा.</small></div>';}
+function authGo(){
+  var m=($('am').value||'').replace(/\D/g,''),p=$('ap').value||'',n=AUTHMODE==='up'?($('an').value||'').trim():'';
+  if(!/^[6-9]\d{9}$/.test(m))return msg('aM','१० अंकी वैध मोबाईल क्रमांक भरा','err');
+  if(p.length<6)return msg('aM','पासवर्ड किमान ६ अक्षरांचा हवा','err');
+  if(AUTHMODE==='up'&&!n)return msg('aM','नाव भरा','err');
+  $('ab').disabled=true;msg('aM','⏳ कृपया थांबा…');
+  http('POST',authUrl(AUTHMODE==='up'?'signUp':'signInWithPassword'),{email:'m'+m+'@citizen.gp',password:p,returnSecureToken:true}).then(function(r){
+    SES={uid:r.localId,idToken:r.idToken,refreshToken:r.refreshToken,exp:Date.now()+(+r.expiresIn||3600)*1000,mob:m,name:n||(LS.g('GPAPP_NAME_'+m)||'')};
+    if(n)LS.s('GPAPP_NAME_'+m,n);LS.s(sesKey(),SES);enter();
+  },function(e){$('ab').disabled=false;msg('aM',errText(e),'err');});
+}
+// ── मुख्य ──
+function enter(){
+  $('chg').classList.add('hidden');$('lo').classList.remove('hidden');$('nav').classList.remove('hidden');$('ttl').textContent='🏛️ ग्रामपंचायत '+GP.v;
+  $('m').innerHTML='<div class="card">⏳ माहिती आणत आहे…</div>';
+  fsGet('gpapp/cfg').then(function(c){CFG=c;LS.s('GPAPP_CFG_'+GP.p,c);},function(){CFG=LS.g('GPAPP_CFG_'+GP.p);}).then(function(){
+    if(CFG&&CFG.gp)$('ttl').textContent='🏛️ '+CFG.gp+(CFG.tal?' · '+CFG.tal:'');tab('home');},function(){});
+}
+function tab(t){TAB=t;var N=[['home','🏠','मुख्य'],['dakhla','📄','दाखला'],['tax','💰','कर भरणा'],['mine','📋','माझे'],['web','🌐','वेबसाईट']];
+  $('nav').innerHTML=N.map(function(x){return '<button class="'+(x[0]===t?'on':'')+'" onclick="tab(\''+x[0]+'\')"><span>'+x[1]+'</span>'+x[2]+'</button>';}).join('');
+  ({home:vHome,dakhla:vDakhla,tax:vTax,mine:vMine,web:vWeb})[t]();window.scrollTo(0,0);}
+function off(){return !CFG||CFG.on===false?'<div class="card"><div class="msg err">सध्या ही सेवा ग्रामपंचायतीने बंद ठेवली आहे किंवा माहिती उपलब्ध नाही.</div></div>':'';}
+function vHome(){$('m').innerHTML='<div class="card"><h2>नमस्कार'+(SES.name?', '+E(SES.name):'')+' 🙏</h2><div>मोबाईल: <b>'+E(SES.mob)+'</b></div><div style="margin-top:8px">येथे तुम्ही ऑनलाइन दाखला मागणी, कर भरणा करू शकता आणि सही-शिक्क्याचा डिजिटल दाखला/पावती डाउनलोड करू शकता.</div></div>'+
+  '<div class="card"><button class="p" style="margin:0 0 8px" onclick="tab(\'dakhla\')">📄 दाखला मागवा</button><button class="p" style="margin:0 0 8px" onclick="tab(\'tax\')">💰 कर भरा</button><button class="p" style="margin:0" onclick="tab(\'mine\')">📋 माझ्या मागण्या / डाउनलोड</button></div>'+off();}
+// ── मागणी क्रमांक: Dakhala0001 / Tax0001 (gpapp_seq मध्ये राखून ठेवतो; दोन नागरिकांना एकच क्रमांक कधीच मिळत नाही) ──
+function seqName(pre,n){var t=String(n);while(t.length<4)t='0'+t;return pre+t;}
+function seqExists(pre,n){return fsGet('gpapp_seq/'+seqName(pre,n)).then(function(d){return !!d;});}
+function seqFindNext(pre){ // 1..N सर्व असतात (क्रम खंडित नाही) म्हणून exponential + binary शोध
+  var hint=+(LS.g('GPAPP_HINT_'+pre+GP.p)||0);
+  function first(){return hint>0?seqExists(pre,hint).then(function(e){return e?hint:0;}):Promise.resolve(0);}
+  return first().then(function(lo){
+    function grow(lo,step){return seqExists(pre,lo+step).then(function(e){return e?grow(lo+step,step*2):[lo,lo+step];});}
+    function bin(lo,hi){if(hi-lo<=1)return Promise.resolve(hi);var mid=Math.floor((lo+hi)/2);return seqExists(pre,mid).then(function(e){return e?bin(mid,hi):bin(lo,mid);});}
+    return grow(lo,1).then(function(r){return bin(r[0],r[1]);});
+  });
+}
+function seqReserve(pre){
+  function tryN(n,k){if(k>12)return Promise.reject(new Error('क्रमांक मिळाला नाही — पुन्हा प्रयत्न करा'));
+    return fsCreate('gpapp_seq',seqName(pre,n),{uid:SES.uid,ts:new Date().toISOString()}).then(function(){LS.s('GPAPP_HINT_'+pre+GP.p,n);return seqName(pre,n);},
+      function(e){if(e.http===409||/ALREADY_EXISTS/.test(e.message))return tryN(n+1,k+1);throw e;});}
+  return seqFindNext(pre).then(function(n){return tryN(n,0);});
+}
+function upiLink(amt,code){var c=CFG||{};return c.upi?('upi://pay?pa='+encodeURIComponent(c.upi)+'&pn='+encodeURIComponent(c.gp||'ग्रामपंचायत')+'&am='+encodeURIComponent(amt)+'&cu=INR&tn='+encodeURIComponent(code)):'';}
+function copyCode(c){try{navigator.clipboard.writeText(c);}catch(e){}var el=$('cpm');if(el)el.textContent='✅ कॉपी केले';}
+function payBox(amt,code){var c=CFG||{},ul=upiLink(amt,code);return '<div class="card qr"><h2>💳 ₹'+E(amt)+' भरा</h2>'+
+  '<div class="msg inf" style="font-size:14px">UPI मधील <b>टीप / Remarks / Note</b> मध्ये हा क्रमांक लिहा:<div style="font-size:24px;font-weight:700;letter-spacing:1px;margin:6px 0">'+E(code)+'</div><button class="s" onclick="copyCode(\''+E(code)+'\')">📋 कॉपी करा</button> <span id="cpm"></span></div>'+
+  (ul?'<a href="'+E(ul)+'"><button class="p" style="margin-top:10px">📲 UPI ॲपमध्ये भरा (क्रमांक आपोआप भरतो)</button></a>':'')+
+  (c.qr?'<div style="margin-top:10px">किंवा हा QR स्कॅन करा (टीपेत क्रमांक स्वतः लिहा):</div><img src="'+E(c.qr)+'" alt="QR">':'<div class="msg err">ग्रामपंचायतीने QR अपलोड केलेला नाही</div>')+(c.upi?'<div style="margin-top:6px">UPI ID: <b>'+E(c.upi)+'</b></div>':'')+'<small style="display:block;margin-top:6px">रक्कम बदलू नका. भरल्यानंतर खाली UTR / व्यवहार क्रमांक द्या. ग्रामपंचायत कार्यालय तपासून मंजूर करेल.</small></div>';}
+var CUR={shot:'',photo:'',code:'',key:''};
+function shotField(){return '<label>UTR / व्यवहार क्रमांक (१२ अंकी)</label><input id="f-utr" inputmode="numeric" maxlength="30"><label>पेमेंट स्क्रीनशॉट (ऐच्छिक, UTR नसल्यास आवश्यक)</label><input type="file" accept="image/*" onchange="CUR.shot=\'\';var f=this.files[0];if(f)pickImg(f,1000,0.7,function(u){CUR.shot=u;msg(\'f-sm\',u?\'✅ स्क्रीनशॉट जोडला\':\'❌ इमेज वाचता आली नाही\',u?\'ok\':\'err\');})"><div id="f-sm"></div>';}
+function vDakhla(){
+  var types=(CFG&&CFG.types)||[];if(!CFG||CFG.on===false||!types.length){$('m').innerHTML=off()||'<div class="card"><div class="msg inf">ग्रामपंचायतीने अजून दाखले सुरू केलेले नाहीत.</div></div>';return;}
+  CUR={shot:'',photo:'',code:'',key:''};
+  $('m').innerHTML='<div class="card"><h2>📄 ऑनलाइन दाखला मागणी</h2><label>दाखल्याचा प्रकार</label><select id="f-t">'+types.map(function(t){return '<option value="'+t.i+'" data-fee="'+t.fee+'">'+E(t.t)+' — ₹'+t.fee+'</option>';}).join('')+'</select>'+
+   '<label>अर्जदाराचे पूर्ण नाव</label><input id="f-n" value="'+E(SES.name)+'"><label>वडिलांचे / पतीचे नाव</label><input id="f-fa"><label>नाते</label><select id="f-rel"><option>मुलगा</option><option>मुलगी</option><option>पत्नी</option></select><label>वय</label><input id="f-age" inputmode="numeric" maxlength="3"><label>व्यवसाय</label><input id="f-occ"><label>आधार क्रमांक (ऐच्छिक)</label><input id="f-ad" inputmode="numeric" maxlength="12"><label>पत्ता</label><textarea id="f-ad2" rows="2"></textarea>'+
+   '<label>फोटो (ऐच्छिक)</label><input type="file" accept="image/*" onchange="var f=this.files[0];if(f)pickImg(f,300,0.8,function(u){CUR.photo=u;})"><div id="f-m0"></div><button class="p" id="f-b0" onclick="dakhlaNext()">पुढे — भरणा करा ➜</button></div><div id="payStep"></div>';}
+function dakhlaNext(){
+  var o=$('f-t').selectedOptions[0],fee=+o.getAttribute('data-fee')||0,n=($('f-n').value||'').trim();
+  if(!n)return msg('f-m0','नाव भरा','err');if(!($('f-fa').value||'').trim())return msg('f-m0','वडिलांचे/पतीचे नाव भरा','err');
+  if(CUR.code)return;$('f-b0').disabled=true;msg('f-m0','⏳ क्रमांक तयार करत आहे…');
+  var go=function(code){CUR.code=code;CUR.fee=fee;CUR.type=+o.value;msg('f-m0','');$('f-t').disabled=true;
+    $('payStep').innerHTML=(fee>0?payBox(fee,code):'<div class="card"><div class="msg ok">हा दाखला मोफत आहे — मागणी क्रमांक <b>'+E(code)+'</b></div></div>')+'<div class="card"><h2>भरणा तपशील</h2>'+(fee>0?shotField():'')+'<div id="f-m"></div><button class="p" id="f-b" onclick="dakhlaSend()">✅ मागणी सादर करा</button></div>';
+    $('f-b0').style.display='none';window.scrollTo(0,document.body.scrollHeight);};
+  seqReserve('Dakhala').then(go,function(e){$('f-b0').disabled=false;msg('f-m0',errText(e),'err');});}
+function dakhlaSend(){
+  var fee=CUR.fee,utr=(($('f-utr')||{}).value||'').trim(),n=($('f-n').value||'').trim();
+  if(fee>0&&!utr&&!CUR.shot)return msg('f-m','UTR क्रमांक किंवा स्क्रीनशॉट द्या — भरणा केल्याशिवाय मागणी जतन होत नाही','err');
+  $('f-b').disabled=true;msg('f-m','⏳ पाठवत आहे…');
+  var d={uid:SES.uid,kind:'dakhla',code:CUR.code,type:CUR.type,fee:fee,name:n,father:$('f-fa').value.trim(),rel:$('f-rel').value,age:$('f-age').value.trim(),occ:$('f-occ').value.trim(),aadh:$('f-ad').value.trim(),addr:$('f-ad2').value.trim(),mob:SES.mob,utr:utr,shot:CUR.shot,photo:CUR.photo,status:'paid_pending',ts:new Date().toISOString()};
+  fsCreate('gpapp_req',CUR.code,d).then(function(){msg('f-m','✅ मागणी '+CUR.code+' सादर झाली. ग्रामपंचायत भरणा तपासून मंजूर करेल, मग "माझे" मध्ये दाखला डाउनलोड करा.','ok');setTimeout(function(){tab('mine');},1800);},
+    function(e){$('f-b').disabled=false;msg('f-m',errText(e),'err');});}
+function vTax(){if(!CFG||CFG.on===false){$('m').innerHTML=off();return;}CUR={shot:'',photo:'',code:'',key:''};
+  $('m').innerHTML='<div class="card"><h2>💰 घरपट्टी / कर भरणा</h2><label>अ.क्र. किंवा मिळकत (घर) क्रमांक</label><input id="t-p"><label>मालमत्ताधारकाचे नाव</label><input id="t-n" value="'+E(SES.name)+'"><label>भरणार असलेली रक्कम (₹)</label><input id="t-a" inputmode="numeric"><small style="display:block;margin-top:6px">तुमची थकबाकी/शिल्लक रक्कम ग्रामपंचायत कार्यालयाकडून विचारा.</small><div id="f-m0"></div><button class="p" id="f-b0" onclick="taxNext()">पुढे — भरणा करा ➜</button></div><div id="payStep"></div>';}
+function taxNext(){var a=Math.round(+($('t-a').value||0)),p=($('t-p').value||'').trim();
+  if(!p)return msg('f-m0','अ.क्र./मिळकत क्रमांक भरा','err');if(!(a>0))return msg('f-m0','रक्कम भरा','err');
+  $('f-b0').disabled=true;msg('f-m0','⏳ क्रमांक तयार करत आहे…');
+  seqReserve('Tax').then(function(code){CUR.code=code;CUR.amount=a;CUR.pno=p;msg('f-m0','');$('t-a').disabled=true;$('t-p').disabled=true;
+    $('payStep').innerHTML=payBox(a,code)+'<div class="card"><h2>भरणा तपशील</h2>'+shotField()+'<div id="f-m"></div><button class="p" id="f-b" onclick="taxSend()">✅ भरणा सादर करा</button></div>';$('f-b0').style.display='none';window.scrollTo(0,document.body.scrollHeight);},
+    function(e){$('f-b0').disabled=false;msg('f-m0',errText(e),'err');});}
+function taxSend(){var utr=($('f-utr').value||'').trim();
+  if(!utr&&!CUR.shot)return msg('f-m','UTR क्रमांक किंवा स्क्रीनशॉट द्या','err');
+  $('f-b').disabled=true;msg('f-m','⏳ पाठवत आहे…');
+  fsCreate('gpapp_req',CUR.code,{uid:SES.uid,kind:'tax',code:CUR.code,amount:CUR.amount,pno:CUR.pno,name:($('t-n').value||'').trim(),mob:SES.mob,utr:utr,shot:CUR.shot,status:'paid_pending',ts:new Date().toISOString()}).then(function(){
+    msg('f-m','✅ भरणा '+CUR.code+' सादर झाला. मंजुरीनंतर पावती "माझे" मध्ये मिळेल.','ok');setTimeout(function(){tab('mine');},1800);},function(e){$('f-b').disabled=false;msg('f-m',errText(e),'err');});}
+var MINE=[];
+function vMine(){$('m').innerHTML='<div class="card">⏳ आणत आहे…</div>';fsMine().then(function(l){MINE=l.sort(function(a,b){return String(b.ts).localeCompare(String(a.ts));});
+  var T=(CFG&&CFG.types)||[],tn=function(r){if(r.kind==='tax')return '🏠 कर भरणा';var t=T.filter(function(x){return x.i===r.type;})[0];return t?t.t:'दाखला';};
+  var bd={paid_pending:'<span class="badge b-p">⏳ पडताळणी सुरू</span>',approved:'<span class="badge b-a">✅ मंजूर</span>',rejected:'<span class="badge b-r">❌ नाकारले</span>'};
+  $('m').innerHTML=(MINE.length?MINE.map(function(r,i){return '<div class="card"><div class="row"><b style="flex:1">'+E(tn(r))+(r.code?' · '+E(r.code):'')+'</b>'+(bd[r.status]||'')+'</div><small>'+E(String(r.ts).slice(0,10).split('-').reverse().join('-'))+' · ₹'+E(r.kind==='tax'?r.amount:r.fee)+(r.utr?' · UTR '+E(r.utr):'')+'</small>'+
+    (r.status==='rejected'?'<div class="msg err">'+E(r.note||'')+'</div>':'')+(r.status==='approved'&&r.certHtml?'<button class="p" onclick="openCert('+i+')">⬇️ '+(r.kind==='tax'?'पावती':'दाखला')+' डाउनलोड / प्रिंट (PDF)</button>':'')+'</div>';}).join(''):'<div class="card"><div class="msg inf">अजून कोणतीही मागणी नाही.</div></div>')+'<button class="s" style="width:100%" onclick="vMine()">🔄 ताजे करा</button>';},
+  function(e){$('m').innerHTML='<div class="card"><div class="msg err">'+E(errText(e))+'</div></div>';});}
+function openCert(i){var r=MINE[i];if(!r||!r.certHtml)return;
+  var h='<!doctype html><html><head><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="script-src \'none\'"><meta name="viewport" content="width=device-width,initial-scale=1"><title>'+E((r.kind==='tax'?'पावती-':'दाखला-')+(r.certNo||''))+'</title><style>@page{size:A4;margin:8mm}body{margin:0;font-family:Mangal,\'Noto Sans Devanagari\',serif}.bar{background:#0D2B5E;color:#fff;padding:10px;text-align:center}.bar a{color:#fff;font-weight:700}@media print{.bar{display:none}}</style></head><body><div class="bar">PDF साठी: ब्राउझरचा "Print / प्रिंट" → "Save as PDF" निवडा (मेनू ⋮ → Print)</div>'+r.certHtml+'</body></html>';
+  var b=new Blob([h],{type:'text/html'}),u=URL.createObjectURL(b),w=window.open(u,'_blank');if(!w)location.href=u;}
+function vWeb(){var w=CFG&&CFG.web;$('m').innerHTML=w?'<div class="card" style="padding:6px"><iframe src="'+E(w)+'" title="ग्रामपंचायत वेबसाईट"></iframe><div style="text-align:center;margin-top:6px"><a href="'+E(w)+'" target="_blank" rel="noopener">वेबसाईट वेगळ्या टॅबमध्ये उघडा ↗</a></div></div>':'<div class="card"><div class="msg inf">ग्रामपंचायतीने वेबसाईट अजून प्रकाशित केलेली नाही.</div></div>';}
+boot();
+</script></body></html>
