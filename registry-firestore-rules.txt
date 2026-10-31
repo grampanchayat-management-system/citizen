@@ -1,0 +1,32 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // गावानुसार गुप्त कोड — फक्त तुम्ही Firebase Console मध्ये बनवता; ॲप/सॉफ्टवेअरला वाचता-लिहिता येत नाही
+    match /codes/{vcode} {
+      allow read, write: if false;
+    }
+
+    // ग्रामपंचायत इथे आपला कोड पाठवते; कोणालाही वाचता येत नाही
+    match /claims/{vcode} {
+      allow get, list: if false;
+      allow create, update: if exists(/databases/$(database)/documents/codes/$(vcode))
+        && request.resource.data.keys().hasOnly(['code'])
+        && request.resource.data.code is string;
+      allow delete: if false;
+    }
+
+    // सार्वजनिक गाव-नोंदणी: नागरिक ॲप फक्त एका गावाची नोंद वाचतो; लिहायला योग्य कोड लागतो
+    match /gps/{vcode} {
+      allow get: if true;
+      allow list: if false;
+      allow create, update: if exists(/databases/$(database)/documents/codes/$(vcode))
+        && request.resource.data.keys().hasOnly(['s','d','t','v','p','k','w','upd'])
+        && request.resource.data.p is string
+        && request.resource.data.k is string
+        && getAfter(/databases/$(database)/documents/claims/$(vcode)).data.code
+           == get(/databases/$(database)/documents/codes/$(vcode)).data.code;
+      allow delete: if false;
+    }
+  }
+}

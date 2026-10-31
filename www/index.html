@@ -32,7 +32,7 @@ iframe{width:100%;height:78vh;border:0;border-radius:8px;background:#fff}
 <script>
 var $=function(i){return document.getElementById(i);},E=function(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});};
 var LS={g:function(k){try{return JSON.parse(localStorage.getItem(k));}catch(e){return null;}},s:function(k,v){try{localStorage.setItem(k,JSON.stringify(v));}catch(e){}},d:function(k){try{localStorage.removeItem(k);}catch(e){}}};
-var IDX={states:[]},VC={},VTOK=0,DIR={directory:{},gps:[]},GP=null,SES=null,CFG=null,TAB='home',MOCK=(location.search.match(/[?&]mock=([^&]+)/)||[])[1];
+var IDX={states:[]},VC={},VTOK=0,VCODE={},REG_P='gp-registry-ccb70',REG_K='AIzaSyC31V2J-N6UCunB6W5bDTBVOeJBuudVHbQ',DIR={directory:{},gps:[]},GP=null,SES=null,CFG=null,TAB='home',MOCK=(location.search.match(/[?&]mock=([^&]+)/)||[])[1];
 var U=MOCK?{auth:MOCK+'/idt',tok:MOCK+'/tok',fs:MOCK+'/fs'}:{auth:'https://identitytoolkit.googleapis.com',tok:'https://securetoken.googleapis.com',fs:'https://firestore.googleapis.com/v1'};
 // ── Firestore/Auth REST ──
 function http(method,url,body,hdr,form){
@@ -100,7 +100,7 @@ function getVillages(s,d,t,cb){
   var so=stObj(s),dobj=dsObj(s,d),to=tlObj(s,d,t);
   if(!(so&&dobj&&to))return cb(srt(cust),true);
   var key=so.code+'_'+dobj.c;
-  var done=function(j,ok){var out=((j&&j[to.c])||[]).map(function(v){return {mr:v[1],en:v[0]};}),have={};out.forEach(function(x){have[x.mr]=1;});cust.forEach(function(x){if(!have[x.mr])out.push(x);});cb(srt(out),ok);};
+  var done=function(j,ok){var out=((j&&j[to.c])||[]).map(function(v){return {mr:v[1],en:v[0],code:v[2]};}),have={};out.forEach(function(x){have[x.mr]=1;});cust.forEach(function(x){if(!have[x.mr])out.push(x);});cb(srt(out),ok);};
   if(VC[key])return done(VC[key],true);
   fetch('dir/'+key+'.json').then(function(r){if(!r.ok)throw 0;return r.json();}).then(function(j){VC[key]=j;done(j,true);}).catch(function(){done(null,false);});
 }
@@ -117,12 +117,24 @@ function pc(l){var s=$('ps').value;
   if(l<=3){var tok=++VTOK;
     if(!(s&&d&&t)){$('pv').innerHTML=opts([]);return;}
     $('pv').innerHTML='<option value="">⏳ गावे लोड होत आहेत…</option>';
-    getVillages(s,d,t,function(list,ok){if(tok!==VTOK)return;$('pv').innerHTML=opts(list);if(!ok)msg('pm','इंटरनेट नसल्याने सर्व गावे लोड झाली नाहीत — नेट चालू करून पुन्हा निवडा.','err');else msg('pm','');});}
+    getVillages(s,d,t,function(list,ok){if(tok!==VTOK)return;VCODE={};list.forEach(function(x){if(x.code)VCODE[x.mr]=x.code;});$('pv').innerHTML=opts(list);if(!ok)msg('pm','इंटरनेट नसल्याने सर्व गावे लोड झाली नाहीत — नेट चालू करून पुन्हा निवडा.','err');else msg('pm','');});}
+}
+function regGet(vc){ // केंद्रीय नोंदणी (gp-registry) मधून गावाची Firebase माहिती
+  return fetch('https://firestore.googleapis.com/v1/projects/'+REG_P+'/databases/(default)/documents/gps/'+encodeURIComponent(vc)+'?key='+REG_K).then(function(r){
+    if(r.status===404)return null;
+    if(!r.ok)throw new Error('reg '+r.status);
+    return r.json().then(function(j){var f=(j&&j.fields)||{},o={};['s','d','t','v','p','k','w'].forEach(function(k){o[k]=(f[k]&&f[k].stringValue)||'';});return o;});
+  });
 }
 function pgo(){var s=$('ps').value,d=$('pd').value,t=$('pt').value,v=$('pv').value;if(!(s&&d&&t&&v))return msg('pm','राज्य, जिल्हा, तालुका व गाव चारही निवडा','err');
-  var g=DIR.gps.filter(function(x){return x.s===s&&x.d===d&&x.t===t&&x.v===v;})[0];
-  if(!g||!g.p||!g.k)return msg('pm','"'+v+'" ग्रामपंचायतीने अजून ॲप सुरू केलेले नाही. लवकरच उपलब्ध होईल.','inf');
-  GP=g;LS.s('GPAPP_GP',g);SES=LS.g(sesKey());SES?enter():authScreen();}
+  var g=DIR.gps.filter(function(x){return x.s===s&&x.d===d&&x.t===t&&x.v===v;})[0],vc=VCODE[v];
+  var done=function(g){
+    if(!g||!g.p||!g.k||/^FIREBASE_/.test(g.p)||/^FIREBASE_/.test(g.k))return msg('pm','"'+v+'" ग्रामपंचायतीने अजून ॲप सुरू केलेले नाही. लवकरच उपलब्ध होईल.','inf');
+    GP=g;LS.s('GPAPP_GP',g);SES=LS.g(sesKey());SES?enter():authScreen();};
+  if(!vc)return done(g);
+  msg('pm','⏳ तपासत आहे…','inf');
+  regGet(vc).then(function(r){done(r&&r.p?r:g);},function(){if(g)return done(g);msg('pm','इंटरनेट/नोंदणी तपासता आली नाही — नेट चालू आहे का ते पाहून पुन्हा प्रयत्न करा.','err');});
+}
 function changeVillage(){LS.d('GPAPP_GP');GP=null;SES=null;CFG=null;pickScreen();}
 function logout(){if(GP)LS.d(sesKey());SES=null;authScreen();}
 // ── लॉगिन / नोंदणी ──
