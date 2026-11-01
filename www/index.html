@@ -34,11 +34,18 @@ nav{overflow-x:auto}nav button{flex:1 0 auto;min-width:56px}
 #ntb{position:fixed;top:56px;left:8px;right:8px;z-index:50;background:#0D2B5E;color:#fff;border-radius:10px;padding:12px;box-shadow:0 4px 14px #0006;max-width:620px;margin:0 auto}
 #ntb button{background:#fff;color:#0D2B5E;border:0;border-radius:7px;padding:7px 12px;font:inherit;margin:8px 8px 0 0}
 .hidden{display:none}small{color:#666}
+.hello{background:linear-gradient(135deg,#0D2B5E,#1c4a9a);color:#fff;border-radius:14px;padding:16px;margin-bottom:12px}.hello .hi{font-size:14px;opacity:.85}.hello .nm{font-size:23px;font-weight:800;line-height:1.3;word-break:break-word}.hello .mb{font-size:13px;opacity:.85;margin-top:4px}
+.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:12px}
+.tile{background:#fff;border:0;border-radius:14px;box-shadow:0 1px 4px #0002;padding:14px 4px 10px;display:flex;flex-direction:column;align-items:center;gap:8px;font:inherit;color:#222;min-width:0;position:relative}
+.tile:active{transform:scale(.96)}.tile .ic{width:54px;height:54px;border-radius:16px;display:flex;align-items:center;justify-content:center;font-size:28px}
+.tile .lb{font-size:12.5px;font-weight:700;line-height:1.25;text-align:center;word-break:break-word}
+.tile .bdg{position:absolute;top:6px;right:10px}
 </style></head><body>
 <header><h1 id="ttl">🏛️ माझी ग्रामपंचायत</h1><button id="chg" class="hidden" onclick="changeVillage()">गाव बदला</button><button id="lo" class="hidden" onclick="logout()">बाहेर पडा</button></header>
 <main id="m"></main>
 <nav id="nav" class="hidden"></nav>
 <script src="config.js"></script>
+<script src="qrcode.bundle.js"></script>
 <script src="certpdf.js"></script>
 <script>
 var $=function(i){return document.getElementById(i);},E=function(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});};
@@ -161,8 +168,9 @@ function authGo(){
   if(AUTHMODE==='up'&&!n)return msg('aM','नाव भरा','err');
   $('ab').disabled=true;msg('aM','⏳ कृपया थांबा…');
   http('POST',authUrl(AUTHMODE==='up'?'signUp':'signInWithPassword'),{email:'m'+m+'@citizen.gp',password:p,returnSecureToken:true}).then(function(r){
-    SES={uid:r.localId,idToken:r.idToken,refreshToken:r.refreshToken,exp:Date.now()+(+r.expiresIn||3600)*1000,mob:m,name:n||(LS.g('GPAPP_NAME_'+m)||'')};
-    if(n)LS.s('GPAPP_NAME_'+m,n);LS.s(sesKey(),SES);enter();
+    SES={uid:r.localId,idToken:r.idToken,refreshToken:r.refreshToken,exp:Date.now()+(+r.expiresIn||3600)*1000,mob:m,name:n||r.displayName||(LS.g('GPAPP_NAME_'+m)||'')};
+    if(SES.name)LS.s('GPAPP_NAME_'+m,SES.name);LS.s(sesKey(),SES);
+    if(n){try{http('POST',authUrl('update'),{idToken:r.idToken,displayName:n,returnSecureToken:false}).then(null,function(){});}catch(e){}}enter();
   },function(e){$('ab').disabled=false;msg('aM',errText(e),'err');});
 }
 // ── मुख्य ──
@@ -183,8 +191,12 @@ function navDraw(){var N=[['home','🏠','मुख्य'],['notice','📢','�
   $('nav').innerHTML=N.map(function(x){return '<button class="'+(x[0]===TAB?'on':'')+'" onclick="tab(\''+x[0]+'\')"><span>'+x[1]+(x[0]==='notice'&&un?'<i class="bdg">'+un+'</i>':'')+'</span>'+x[2]+'</button>';}).join('');}
 function tab(t){TAB=t;navDraw();({home:vHome,notice:vNotice,dakhla:vDakhla,sg:vSG,nond:vNond,tax:vTax,mine:vMine,comp:vComp,web:vWeb})[t]();window.scrollTo(0,0);}
 function off(){return !CFG||CFG.on===false?'<div class="card"><div class="msg err">सध्या ही सेवा ग्रामपंचायतीने बंद ठेवली आहे किंवा माहिती उपलब्ध नाही.</div></div>':'';}
-function vHome(){$('m').innerHTML='<div id="hn"></div><div id="hc"></div><div class="card"><h2>नमस्कार'+(SES.name?', '+E(SES.name):'')+' 🙏</h2><div>मोबाईल: <b>'+E(SES.mob)+'</b></div><div style="margin-top:8px">येथे तुम्ही दाखला मागणी (नमुना ८, जन्म, मृत्यू, विवाह, BPL, येणे बाकी नाही, निराधार), स्वयंघोषणापत्र, कर भरणा करू शकता, गावातील समस्यांची तक्रार किंवा सूचना पाठवू शकता आणि सही-शिक्क्याचा डिजिटल दाखला/पावती डाउनलोड करू शकता.</div></div>'+
-  '<div class="card"><button class="p" style="margin:0 0 8px" onclick="tab(\'dakhla\')">📄 दाखला मागवा</button><button class="p" style="margin:0 0 8px" onclick="tab(\'sg\')">📝 स्वयंघोषणापत्र</button><button class="p" style="margin:0 0 8px" onclick="tab(\'tax\')">💰 कर शोधा / भरा</button><button class="p" style="margin:0 0 8px" onclick="tab(\'nond\')">➕ नोंद करून द्या</button><button class="p" style="margin:0 0 8px" onclick="tab(\'comp\')">📣 तक्रार / सूचना</button><button class="p" style="margin:0" onclick="tab(\'mine\')">📋 माझ्या मागण्या / डाउनलोड</button></div>'+off();
+function homeGrid(){var un=0;try{un=ntUnread();}catch(e){}
+  var T=[['dakhla','📄','दाखला मागवा','#e3f0ff'],['sg','📝','स्वयंघोषणा-पत्र','#fff3e0'],['tax','💰','कर शोधा / भरा','#e6f4ea'],['nond','➕','नोंद करून द्या','#f3e5f5'],['comp','📣','तक्रार / सूचना','#fde8e8'],['mine','📋','माझ्या मागण्या / डाउनलोड','#e0f7fa'],['notice','📢','सूचना','#fff8e1'],['web','🌐','वेबसाईट','#e8eaf6']];
+  return '<div class="grid3">'+T.map(function(x){return '<button class="tile" onclick="tab(\''+x[0]+'\')"><span class="ic" style="background:'+x[3]+'">'+x[1]+'</span><span class="lb">'+x[2]+'</span>'+(x[0]==='notice'&&un?'<i class="bdg">'+un+'</i>':'')+'</button>';}).join('')+'</div>';}
+function saveMyName(){var n=($('hnn').value||'').trim();if(!n)return;SES.name=n;LS.s('GPAPP_NAME_'+SES.mob,n);LS.s(sesKey(),SES);
+  try{http('POST',authUrl('update'),{idToken:SES.idToken,displayName:n,returnSecureToken:false});}catch(e){}vHome();}
+function vHome(){$('m').innerHTML='<div id="hn"></div><div id="hc"></div><div class="hello"><div class="hi">नमस्कार 🙏</div><div class="nm">'+(SES.name?E(SES.name):'नागरिक')+'</div><div class="mb">📱 '+E(SES.mob)+'</div></div>'+(SES.name?'':'<div class="card"><label style="margin-top:0">तुमचे नाव भरा (मुख्य पानावर दिसेल)</label><input id="hnn" autocomplete="name"><button class="p" onclick="saveMyName()">जतन करा</button></div>')+homeGrid()+off();
   fsMineNond().then(function(l){var seen=LS.g('GPAPP_SEEN_'+GP.p)||[],h='';
     l.forEach(function(r){if((r.status==='done'||r.status==='notfound')&&seen.indexOf(r.code)<0)h+=nondNote(r,true);});
     if($('hn'))$('hn').innerHTML=h;},function(){});
@@ -220,14 +232,22 @@ function nondNote(r,home){
 function seenNond(c){var s=LS.g('GPAPP_SEEN_'+GP.p)||[];if(s.indexOf(c)<0)s.push(c);LS.s('GPAPP_SEEN_'+GP.p,s);vHome();}
 function goDakhla(k){DKSEL=k;tab('dakhla');}
 // ── UPI / भरणा ──
-function upiLink(amt,code){var c=CFG||{};return c.upi?('upi://pay?pa='+encodeURIComponent(c.upi)+'&pn='+encodeURIComponent(c.gp||'ग्रामपंचायत')+'&am='+encodeURIComponent(amt)+'&cu=INR&tn='+encodeURIComponent(code)):'';}
+function fmtAm(a){a=Math.round(+a*100)/100;return isNaN(a)?'0.00':a.toFixed(2);}
+function upiUrl(upi,amt,code){var c=CFG||{};return 'upi://pay?pa='+encodeURIComponent(upi)+'&pn='+encodeURIComponent(c.gp||'ग्रामपंचायत')+'&am='+encodeURIComponent(fmtAm(amt))+'&cu=INR&tn='+encodeURIComponent(code);}
+function upiQr(img){if(img.dataset.done)return;img.dataset.done='1';try{window.QRCode.toDataURL(img.dataset.u,{width:260,margin:2,errorCorrectionLevel:'M'},function(e,u){if(!e&&u){img.src=u;img.style.display='';}});}catch(e){}}
+function upiLink(amt,code){var c=CFG||{};return c.upi?('upi://pay?pa='+encodeURIComponent(c.upi)+'&pn='+encodeURIComponent(c.gp||'ग्रामपंचायत')+'&am='+encodeURIComponent(fmtAm(amt))+'&cu=INR&tn='+encodeURIComponent(code)):'';}
 function copyCode(c,sid){try{navigator.clipboard.writeText(c);}catch(e){}var el=$('cpm'+(sid||''));if(el)el.textContent='✅ कॉपी केले';}
 function payBox(amt,code,o){o=o||{};var c=CFG||{},upi=o.upi!=null?o.upi:c.upi,qr=o.qr!=null?o.qr:c.qr,
-  ul=upi?('upi://pay?pa='+encodeURIComponent(upi)+'&pn='+encodeURIComponent(c.gp||'ग्रामपंचायत')+'&am='+encodeURIComponent(amt)+'&cu=INR&tn='+encodeURIComponent(code)):'',sid=o.sid||'';
-  return '<div class="card qr"><h2>💳 '+(o.title?E(o.title)+' — ':'')+'₹'+E(amt)+' भरा</h2>'+
-  '<div class="msg inf" style="font-size:14px">UPI मधील <b>टीप / Remarks / Note</b> मध्ये हा क्रमांक लिहा:<div style="font-size:24px;font-weight:700;letter-spacing:1px;margin:6px 0">'+E(code)+'</div><button class="s" onclick="copyCode(\''+E(code)+'\',\''+sid+'\')">📋 कॉपी करा</button> <span id="cpm'+sid+'"></span></div>'+
-  (ul?'<a href="'+E(ul)+'"><button class="p" style="margin-top:10px">📲 UPI ॲपमध्ये भरा (क्रमांक आपोआप भरतो)</button></a>':'')+
-  (qr?'<div style="margin-top:10px">किंवा हा QR स्कॅन करा (टीपेत क्रमांक स्वतः लिहा):</div><img src="'+E(qr)+'" alt="QR">':'<div class="msg err">ग्रामपंचायतीने '+(o.title?E(o.title)+' चा ':'')+'QR अपलोड केलेला नाही</div>')+(upi?'<div style="margin-top:6px">UPI ID: <b>'+E(upi)+'</b></div>':'')+'<small style="display:block;margin-top:6px">रक्कम बदलू नका. भरल्यानंतर खाली UTR / व्यवहार क्रमांक द्या. ग्रामपंचायत कार्यालय तपासून मंजूर करेल.</small></div>';}
+  ul=upi?upiUrl(upi,amt,code):'',sid=o.sid||'';
+  return '<div class="card qr"><h2>💳 '+(o.title?E(o.title)+' — ':'')+'₹'+E(fmtAm(amt))+' भरा</h2>'+
+  '<div style="font-size:30px;font-weight:800;color:#0D2B5E;margin:4px 0">₹ '+E(fmtAm(amt))+'</div>'+
+  (ul?'<div class="msg ok" style="font-size:14px">या बटणाने / QR ने UPI ॲप उघडल्यावर <b>रक्कम ₹'+E(fmtAm(amt))+'</b> व टीप (<b>'+E(code)+'</b>) आपोआप भरलेली दिसेल.</div>'+
+     '<a href="'+E(ul)+'"><button class="p" style="margin-top:6px">📲 UPI ॲपमध्ये भरा — ₹'+E(fmtAm(amt))+' आपोआप भरलेले</button></a>'+
+     '<div style="margin-top:10px">किंवा दुसऱ्या फोनने हा QR स्कॅन करा (रक्कम आपोआप भरते):</div>'+
+     '<img data-u="'+E(ul)+'" alt="UPI QR ₹'+E(fmtAm(amt))+'" style="display:none" src="data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==" onload="upiQr(this)">'
+   :(qr?'<div class="msg err" style="font-size:14px">⚠️ ग्रामपंचायतीचा UPI ID Masters मध्ये भरलेला नसल्याने रक्कम आपोआप भरत नाही. खालील QR स्कॅन करून रक्कम <b>₹'+E(fmtAm(amt))+'</b> स्वतः टाका.</div>':''))+
+  '<div class="msg inf" style="font-size:14px;margin-top:8px">UPI मधील <b>टीप / Remarks / Note</b> मध्ये हा क्रमांक लिहा:<div style="font-size:24px;font-weight:700;letter-spacing:1px;margin:6px 0">'+E(code)+'</div><button class="s" onclick="copyCode(\''+E(code)+'\',\''+sid+'\')">📋 कॉपी करा</button> <span id="cpm'+sid+'"></span></div>'+
+  (qr?(upi?'<details style="margin-top:10px"><summary>ग्रामपंचायतीचा मूळ QR (रक्कम स्वतः टाकावी लागते)</summary><img src="'+E(qr)+'" alt="QR"></details>':'<div style="margin-top:10px">ग्रामपंचायतीचा QR स्कॅन करा (टीपेत क्रमांक व रक्कम स्वतः लिहा):</div><img src="'+E(qr)+'" alt="QR">'):(upi?'':'<div class="msg err">ग्रामपंचायतीने '+(o.title?E(o.title)+' चा ':'')+'QR / UPI ID अपलोड केलेला नाही</div>'))+(upi?'<div style="margin-top:6px">UPI ID: <b>'+E(upi)+'</b></div>':'')+'<small style="display:block;margin-top:6px">रक्कम बदलू नका. भरल्यानंतर खाली UTR / व्यवहार क्रमांक द्या. ग्रामपंचायत कार्यालय तपासून मंजूर करेल.</small></div>';}
 var CUR={shot:'',photo:'',code:'',key:''};
 function shotField(sid,title){sid=sid||'';var k='shot'+sid;return (title?'<h3 style="margin:10px 0 0;font-size:14px;color:#0D2B5E">'+E(title)+'</h3>':'')+'<label>UTR / व्यवहार क्रमांक (१२ अंकी)</label><input id="f-utr'+sid+'" inputmode="numeric" maxlength="30"><label>पेमेंट स्क्रीनशॉट (ऐच्छिक, UTR नसल्यास आवश्यक)</label><input type="file" accept="image/*" onchange="CUR.'+k+'=\'\';var f=this.files[0];if(f)pickImg(f,1000,0.7,function(u){CUR.'+k+'=u;msg(\'f-sm'+sid+'\',u?\'✅ स्क्रीनशॉट जोडला\':\'❌ इमेज वाचता आली नाही\',u?\'ok\':\'err\');})"><div id="f-sm'+sid+'"></div>';}
 // ── खऱ्या नोंदींची यादी (ग्रामपंचायतीने सॉफ्टवेअरमधून पाठवलेली) — शोधासाठी ──
@@ -426,9 +446,13 @@ function taxPick(i){
   CUR.pno=String(r[0]);CUR.owner=r[1];CUR.tot=du?du.p+du.c:null;CUR.du=du;CUR.split=true;$('t-res').innerHTML='';
   var hasSplit=!!(du&&du.g),tg=hasSplit?du.g.p+du.g.c:0,tw=hasSplit&&du.w?du.w.p+du.w.c:0,paidUp=!!(du&&du.p+du.c<=0),body='';
   // ग्रामनिधी (घरपट्टी) व पाणीपट्टी — नेहमी वेगळी रक्कम, वेगळा QR, वेगळा UPI/टीप-क्रमांक
-  if(hasSplit)body='<table style="width:100%;margin-top:8px;font-size:14px;border-collapse:collapse">'+dueTbl('🏠 ग्रामनिधी (घरपट्टी)',du.g)+dueTbl('💧 पाणीपट्टी',du.w)+
+  var sumBox=hasSplit?'<div style="margin-top:8px;border:2px solid #0D2B5E;border-radius:10px;padding:10px;background:#F3F7FF"><div style="font-weight:700;color:#0D2B5E;margin-bottom:6px">कोणत्या खात्यात किती रक्कम भरायची</div>'+
+    '<div style="display:flex;justify-content:space-between;font-size:17px;padding:4px 0"><span>🏠 ग्रामनिधी (घरपट्टी) खाते</span><b>₹'+tg+'</b></div>'+
+    '<div style="display:flex;justify-content:space-between;font-size:17px;padding:4px 0;border-top:1px dashed #9db"><span>💧 पाणीपट्टी खाते</span><b>₹'+tw+'</b></div>'+
+    '<div style="display:flex;justify-content:space-between;font-size:18px;padding:6px 0 0;border-top:2px solid #0D2B5E;font-weight:800"><span>एकूण भरायची रक्कम</span><span>₹'+(tg+tw)+'</span></div></div>':'';
+  if(hasSplit)body=sumBox+'<table style="width:100%;margin-top:8px;font-size:14px;border-collapse:collapse">'+dueTbl('🏠 ग्रामनिधी (घरपट्टी)',du.g)+dueTbl('💧 पाणीपट्टी',du.w)+
     '<tr style="font-weight:700;border-top:2px solid #0D2B5E"><td>एकूण भरायची रक्कम</td><td style="text-align:right">₹'+(du.p+du.c)+'</td></tr></table>';
-  else if(du)body='<table style="width:100%;margin-top:8px;font-size:14px;border-collapse:collapse"><tr><td>मागील थकबाकी</td><td style="text-align:right">₹'+du.p+'</td></tr><tr><td>चालू मागणी (शिल्लक)</td><td style="text-align:right">₹'+du.c+'</td></tr><tr style="font-weight:700;border-top:1px solid #ccc"><td>एकूण भरायची रक्कम</td><td style="text-align:right">₹'+(du.p+du.c)+'</td></tr></table>';
+  else if(du)body='<div class="msg inf" style="margin-top:8px">ग्रामपंचायतीने घरपट्टी / पाणीपट्टी वेगळी पाठवलेली नाही — एकूण रक्कम खाली आहे. कार्यालयाकडून विचारून भागवा.</div>'+'<table style="width:100%;margin-top:8px;font-size:14px;border-collapse:collapse"><tr><td>मागील थकबाकी</td><td style="text-align:right">₹'+du.p+'</td></tr><tr><td>चालू मागणी (शिल्लक)</td><td style="text-align:right">₹'+du.c+'</td></tr><tr style="font-weight:700;border-top:1px solid #ccc"><td>एकूण भरायची रक्कम</td><td style="text-align:right">₹'+(du.p+du.c)+'</td></tr></table>';
   else body='<div class="msg inf">थकबाकी दाखवलेली नाही — ग्रामपंचायतीकडून रक्कम विचारून खाली भरा.</div>';
   if(paidUp)body+='<div class="msg ok">✅ तुमची कोणतीही थकबाकी नाही.</div>';
   else body+='<div class="msg inf" style="margin-top:8px">ग्रामनिधी (घरपट्टी) व पाणीपट्टी यांचे <b>खाते वेगळे</b> आहे — प्रत्येकाची रक्कम व QR वेगळा. ज्याचा भरणा करायचा नाही त्याची रक्कम ० (किंवा रिकामी) ठेवा.</div>'+
@@ -491,10 +515,14 @@ function vMine(){$('m').innerHTML='<div class="card">⏳ आणत आहे…<
   function(e){$('m').innerHTML='<div class="card"><div class="msg err">'+E(errText(e))+'</div></div>';});}
 // ⬇️ PDF डाउनलोड / 🖨️ प्रिंट — सॉफ्टवेअरच्या PDF सारखाच, एकाच A4 पानात (certpdf.js)
 function dlCert(i,mode){var printOnly=(mode===1),share=(mode===2);var r=MINE[i];if(!r||!r.certHtml)return;
-  var btn=$('pdfb'+i),old=btn&&btn.innerHTML;if(btn){btn.disabled=true;btn.innerHTML='⏳ PDF तयार होत आहे…';}
+  var btn=$('pdfb'+i),old=btn&&btn.innerHTML,done=false;if(btn){btn.disabled=true;btn.innerHTML='⏳ PDF तयार होत आहे…';}
   var back=function(){if(btn){btn.disabled=false;btn.innerHTML=old;}};
-  if(!window.certPdfMake){back();alert('PDF साधन लोड झाले नाही — ॲप पुन्हा उघडा.');return;}
-  certPdfMake(r).then(function(res){return (printOnly?certPdfOpen(res):share?certPdfShare(res):certPdfDeliver(res));}).then(back,function(e){back();alert('PDF तयार करता आले नाही: '+((e&&e.message)||e));});}
+  var fin=function(res){if(done)return;done=true;clearTimeout(wd);back();
+    if(res==='saved')alert('✅ PDF डाउनलोड झाला — फोनच्या Downloads मध्ये पहा.');};
+  var fail=function(e){if(done)return;done=true;clearTimeout(wd);back();alert('PDF तयार करता आले नाही: '+((e&&e.message)||e));};
+  var wd=setTimeout(function(){fail(new Error('वेळ संपला — पुन्हा प्रयत्न करा'));},90000);
+  if(!window.certPdfMake){fail(new Error('PDF साधन लोड झाले नाही — ॲप पुन्हा उघडा.'));return;}
+  certPdfMake(r).then(function(res){return (printOnly?certPdfOpen(res):share?certPdfShare(res):certPdfDeliver(res));}).then(fin,fail);}
 
 // ── 📢 सूचना / 🚨 आणीबाणी ──
 // ग्रामपंचायत सॉफ्टवेअर 'gpapp/notices' मध्ये यादी (JSON) ठेवते: [{i:id,k:'n'|'e',x:मजकूर,ts}]. ॲप उघडे असताना दर २० सेकंदांनी तपासते.

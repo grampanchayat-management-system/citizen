@@ -206,30 +206,37 @@
     setTimeout(function () { try { document.body.removeChild(a); } catch (e) {} URL.revokeObjectURL(url); }, 60000);
     return 'saved';
   }
-  // APK: PDF फोनवर जतन (Documents/MajhiGramPanchayat मध्ये, Android परवानगी देईल तिथे) + लगेच PDF व्ह्यूअरमध्ये आपोआप उघडतो.
-  // ब्राउझर/PWA: थेट डाउनलोड.
+  // वेळमर्यादा: कोणतीही फोन-कॉल अडकली तरी पुढचा पर्याय आपोआप चालतो (आधी इथेच अडकत होते)
+  function tmo(p, ms, label) {
+    return new Promise(function (res, rej) {
+      var t = setTimeout(function () { rej(new Error(label + ' — वेळ संपला')); }, ms);
+      Promise.resolve(p).then(function (v) { clearTimeout(t); res(v); }, function (e) { clearTimeout(t); rej(e); });
+    });
+  }
+  function isNative() { var C = window.Capacitor; return !!(C && C.isNativePlatform && C.isNativePlatform() && C.registerPlugin); }
+  function msgOf(e) { return String((e && (e.message || e.errorMessage)) || e); }
+  // APK: PDF आधी cache मध्ये (परवानगी नको) → लगेच PDF व्ह्यूअरमध्ये उघडतो; Documents/MajhiGramPanchayat मध्ये प्रत मागे जतन (अडकली तरी हरकत नाही).
   function nativeWrite(res) {
     var C = window.Capacitor, FS = C.registerPlugin('Filesystem');
     return blobB64(res.blob).then(function (b64) {
-      var keep = FS.writeFile({ path: 'MajhiGramPanchayat/' + res.name, data: b64, directory: 'DOCUMENTS', recursive: true })
-        .then(function (r) { return r.uri; }, function () { return null; });   // Android ने नाकारले तरी ठीक — खाली cache प्रत उघडते
-      return FS.writeFile({ path: res.name, data: b64, directory: 'CACHE' }).then(function (w) {
-        return keep.then(function (saved) { return { uri: w.uri, saved: saved }; });
-      });
+      var o = { saved: null, p: null };
+      o.p = tmo(FS.writeFile({ path: 'MajhiGramPanchayat/' + res.name, data: b64, directory: 'DOCUMENTS', recursive: true }), 6000, 'Documents')
+        .then(function (r) { o.saved = r.uri; return r.uri; }, function () { return null; });
+      return tmo(FS.writeFile({ path: res.name, data: b64, directory: 'CACHE' }), 15000, 'फाईल लिहिणे').then(function (w) { o.uri = w.uri; return o; });
     });
   }
   function nativeShare(res, o) {
     var SH = window.Capacitor.registerPlugin('Share');
-    return SH.share({ title: res.title, url: o.uri, dialogTitle: 'PDF पाठवा (WhatsApp इ.)' }).then(function () { return 'shared'; },
-      function (e) { if (/cancel/i.test(String(e && (e.message || e)))) return 'cancelled'; throw e; });
+    return tmo(SH.share({ title: res.title, url: o.uri, dialogTitle: 'PDF जतन करा / पाठवा' }), 120000, 'शेअर').then(function () { return 'shared'; },
+      function (e) { if (/cancel/i.test(msgOf(e))) return 'cancelled'; throw e; });
   }
   function certPdfDeliver(res) {
-    var C = window.Capacitor;
-    if (C && C.isNativePlatform && C.isNativePlatform() && C.registerPlugin) {
+    if (isNative()) {
       return nativeWrite(res).then(function (o) {
-        return C.registerPlugin('FileOpener').open({ filePath: o.uri, contentType: 'application/pdf', openWithDefault: true })
-          .then(function () { return o.saved ? 'saved-opened' : 'opened'; }, function (e) { console.warn('open failed', e); return nativeShare(res, o); }); // व्ह्यूअर नसेल तर शेअर शीट
-      }).catch(function (e) { console.warn('native save failed', e); return browserDownload(res); });
+        return tmo(window.Capacitor.registerPlugin('FileOpener').open({ filePath: o.uri, contentType: 'application/pdf', openWithDefault: true }), 8000, 'PDF उघडणे')
+          .then(function () { return 'opened'; },
+                function (e) { console.warn('open failed', e); return nativeShare(res, o); }); // व्ह्यूअर नसेल तर शेअर/जतन शीट
+      }).catch(function (e) { throw new Error('PDF फोनवर जतन/उघडता आला नाही (' + msgOf(e) + ')'); });
     }
     return Promise.resolve(browserDownload(res));
   }
@@ -237,7 +244,7 @@
   function certPdfShare(res) {
     var C = window.Capacitor;
     if (C && C.isNativePlatform && C.isNativePlatform() && C.registerPlugin) {
-      return nativeWrite(res).then(function (o) { return nativeShare(res, o); }).catch(function (e) { console.warn('share failed', e); return browserDownload(res); });
+      return nativeWrite(res).then(function (o) { return nativeShare(res, o); }).catch(function (e) { throw new Error('PDF पाठवता आला नाही (' + msgOf(e) + ')'); });
     }
     try {
       var f = new File([res.blob], res.name, { type: 'application/pdf' });
