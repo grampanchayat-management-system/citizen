@@ -2,30 +2,31 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // गावानुसार गुप्त कोड — फक्त तुम्ही Firebase Console मध्ये बनवता; ॲप/सॉफ्टवेअरला वाचता-लिहिता येत नाही
-    match /codes/{vcode} {
-      allow read, write: if false;
-    }
-
-    // ग्रामपंचायत इथे आपला कोड पाठवते; कोणालाही वाचता येत नाही
+    // सर्व गावांसाठी एकच सामायिक कोड (GPAPP-ALL) — गावानुसार वेगळा कोड बनवण्याची गरज नाही; सॉफ्टवेअर तो आपोआप वापरते.
+    // हा कोड फक्त या Rules मध्ये असतो; ॲप/सॉफ्टवेअर Firestore मधून तो वाचू शकत नाही.
     match /claims/{vcode} {
       allow get, list: if false;
-      allow create, update: if exists(/databases/$(database)/documents/codes/$(vcode))
+      allow create, update: if vcode.matches('[0-9]{4,8}')
         && request.resource.data.keys().hasOnly(['code'])
-        && request.resource.data.code is string;
+        && request.resource.data.code == 'GPAPP-ALL';
       allow delete: if false;
     }
 
-    // सार्वजनिक गाव-नोंदणी: नागरिक ॲप फक्त एका गावाची नोंद वाचतो; लिहायला योग्य कोड लागतो
+    // सार्वजनिक गाव-नोंदणी: नागरिक ॲप फक्त एका गावाची नोंद वाचतो.
+    // नवे गाव आपोआप नोंदवले जाते; नोंद झालेल्या गावाचा Firebase Project/Key इतर कोणालाही बदलता येत नाही (फक्त वेबसाईट लिंक/वेळ बदलते).
     match /gps/{vcode} {
       allow get: if true;
       allow list: if false;
-      allow create, update: if exists(/databases/$(database)/documents/codes/$(vcode))
+      allow create: if vcode.matches('[0-9]{4,8}')
+        && !exists(/databases/$(database)/documents/gps/$(vcode))
         && request.resource.data.keys().hasOnly(['s','d','t','v','p','k','w','upd'])
         && request.resource.data.p is string
         && request.resource.data.k is string
-        && getAfter(/databases/$(database)/documents/claims/$(vcode)).data.code
-           == get(/databases/$(database)/documents/codes/$(vcode)).data.code;
+        && getAfter(/databases/$(database)/documents/claims/$(vcode)).data.code == 'GPAPP-ALL';
+      allow update: if request.resource.data.keys().hasOnly(['s','d','t','v','p','k','w','upd'])
+        && request.resource.data.p == resource.data.p
+        && request.resource.data.k == resource.data.k
+        && getAfter(/databases/$(database)/documents/claims/$(vcode)).data.code == 'GPAPP-ALL';
       allow delete: if false;
     }
   }

@@ -16,8 +16,8 @@ button.p{background:#0D2B5E;color:#fff;border:0;border-radius:8px;padding:11px 1
 button.s{background:#fff;color:#0D2B5E;border:1.5px solid #0D2B5E;border-radius:8px;padding:8px 12px;font:inherit}
 button:disabled{opacity:.5}
 nav{position:fixed;bottom:0;left:0;right:0;background:#fff;display:flex;border-top:1px solid #ccc;z-index:5}
-nav button{flex:1;border:0;background:none;padding:8px 2px;font:inherit;font-size:11.5px;color:#555}nav button.on{color:#0D2B5E;font-weight:700;border-top:3px solid #0D2B5E}
-nav button span{display:block;font-size:19px}
+nav button{flex:1;border:0;background:none;padding:6px 1px;font:inherit;font-size:10px;color:#555;min-width:0}nav button.on{color:#0D2B5E;font-weight:700;border-top:3px solid #0D2B5E}
+nav button span{display:block;font-size:17px}
 .msg{padding:9px 11px;border-radius:8px;font-size:13px;margin-top:10px}.err{background:#fde8e8;color:#b71c1c}.ok{background:#e6f4ea;color:#1a5c2a}.inf{background:#e8f0fe;color:#0D2B5E}
 .row{display:flex;gap:8px;align-items:center}.badge{font-size:12px;font-weight:700;padding:2px 8px;border-radius:10px}
 .b-p{background:#fff3e0;color:#e65100}.b-a{background:#e6f4ea;color:#1a5c2a}.b-r{background:#fde8e8;color:#b71c1c}
@@ -155,19 +155,29 @@ function authGo(){
   },function(e){$('ab').disabled=false;msg('aM',errText(e),'err');});
 }
 // ── मुख्य ──
+var DKT=[['n8','नमुना ८ उतारा','🏠'],['birth','जन्म दाखला','👶'],['death','मृत्यू दाखला','🕊️'],['vivah','विवाह दाखला','💍'],['bpl','BPL (दारिद्र्य रेषेखालील) दाखला','📋'],['nodue','येणे बाकी नाही दाखला','✅'],['niradhar','निराधार दाखला','👴']];
+function dkName(k){var x=DKT.filter(function(t){return t[0]===k;})[0];return x?x[1]:'दाखला';}
+function dkList(){ // ग्रामपंचायतीने प्रकाशित केलेले (शुल्कासह); जुनी माहिती असेल तर सर्व ७ प्रकार ₹२०
+  var d=(CFG&&CFG.dtypes)||null;
+  if(d&&d.length)return d.map(function(x){return {k:x.k,t:x.t||dkName(x.k),fee:+x.fee};});
+  return DKT.map(function(x){return {k:x[0],t:x[1],fee:20};});}
 function enter(){
   $('chg').classList.add('hidden');$('lo').classList.remove('hidden');$('nav').classList.remove('hidden');$('ttl').textContent='🏛️ ग्रामपंचायत '+GP.v;
   $('m').innerHTML='<div class="card">⏳ माहिती आणत आहे…</div>';
   fsGet('gpapp/cfg').then(function(c){CFG=c;LS.s('GPAPP_CFG_'+GP.p,c);},function(){CFG=LS.g('GPAPP_CFG_'+GP.p);}).then(function(){
     if(CFG&&CFG.gp)$('ttl').textContent='🏛️ '+CFG.gp+(CFG.tal?' · '+CFG.tal:'');tab('home');},function(){});
 }
-function tab(t){TAB=t;var N=[['home','🏠','मुख्य'],['dakhla','📄','दाखला'],['tax','💰','कर भरणा'],['mine','📋','माझे'],['web','🌐','वेबसाईट']];
+var DKSEL='';
+function tab(t){TAB=t;var N=[['home','🏠','मुख्य'],['dakhla','📄','दाखला'],['sg','📝','स्वयंघोषणा'],['nond','➕','नोंद'],['tax','💰','कर'],['mine','📋','माझे'],['web','🌐','वेबसाईट']];
   $('nav').innerHTML=N.map(function(x){return '<button class="'+(x[0]===t?'on':'')+'" onclick="tab(\''+x[0]+'\')"><span>'+x[1]+'</span>'+x[2]+'</button>';}).join('');
-  ({home:vHome,dakhla:vDakhla,tax:vTax,mine:vMine,web:vWeb})[t]();window.scrollTo(0,0);}
+  ({home:vHome,dakhla:vDakhla,sg:vSG,nond:vNond,tax:vTax,mine:vMine,web:vWeb})[t]();window.scrollTo(0,0);}
 function off(){return !CFG||CFG.on===false?'<div class="card"><div class="msg err">सध्या ही सेवा ग्रामपंचायतीने बंद ठेवली आहे किंवा माहिती उपलब्ध नाही.</div></div>':'';}
-function vHome(){$('m').innerHTML='<div class="card"><h2>नमस्कार'+(SES.name?', '+E(SES.name):'')+' 🙏</h2><div>मोबाईल: <b>'+E(SES.mob)+'</b></div><div style="margin-top:8px">येथे तुम्ही ऑनलाइन दाखला मागणी, कर भरणा करू शकता आणि सही-शिक्क्याचा डिजिटल दाखला/पावती डाउनलोड करू शकता.</div></div>'+
-  '<div class="card"><button class="p" style="margin:0 0 8px" onclick="tab(\'dakhla\')">📄 दाखला मागवा</button><button class="p" style="margin:0 0 8px" onclick="tab(\'tax\')">💰 कर भरा</button><button class="p" style="margin:0" onclick="tab(\'mine\')">📋 माझ्या मागण्या / डाउनलोड</button></div>'+off();}
-// ── मागणी क्रमांक: Dakhala0001 / Tax0001 (gpapp_seq मध्ये राखून ठेवतो; दोन नागरिकांना एकच क्रमांक कधीच मिळत नाही) ──
+function vHome(){$('m').innerHTML='<div id="hn"></div><div class="card"><h2>नमस्कार'+(SES.name?', '+E(SES.name):'')+' 🙏</h2><div>मोबाईल: <b>'+E(SES.mob)+'</b></div><div style="margin-top:8px">येथे तुम्ही दाखला मागणी (नमुना ८, जन्म, मृत्यू, विवाह, BPL, येणे बाकी नाही, निराधार), स्वयंघोषणापत्र, कर भरणा करू शकता आणि सही-शिक्क्याचा डिजिटल दाखला/पावती डाउनलोड करू शकता.</div></div>'+
+  '<div class="card"><button class="p" style="margin:0 0 8px" onclick="tab(\'dakhla\')">📄 दाखला मागवा</button><button class="p" style="margin:0 0 8px" onclick="tab(\'sg\')">📝 स्वयंघोषणापत्र</button><button class="p" style="margin:0 0 8px" onclick="tab(\'tax\')">💰 कर शोधा / भरा</button><button class="p" style="margin:0 0 8px" onclick="tab(\'nond\')">➕ नोंद करून द्या</button><button class="p" style="margin:0" onclick="tab(\'mine\')">📋 माझ्या मागण्या / डाउनलोड</button></div>'+off();
+  fsMineNond().then(function(l){var seen=LS.g('GPAPP_SEEN_'+GP.p)||[],h='';
+    l.forEach(function(r){if((r.status==='done'||r.status==='notfound')&&seen.indexOf(r.code)<0)h+=nondNote(r,true);});
+    if($('hn'))$('hn').innerHTML=h;},function(){});}
+// ── मागणी क्रमांक: Dakhala0001 / Tax0001 / Nond0001 (gpapp_seq मध्ये राखून ठेवतो; दोन नागरिकांना एकच क्रमांक कधीच मिळत नाही) ──
 function seqName(pre,n){var t=String(n);while(t.length<4)t='0'+t;return pre+t;}
 function seqExists(pre,n){return fsGet('gpapp_seq/'+seqName(pre,n)).then(function(d){return !!d;});}
 function seqFindNext(pre){ // 1..N सर्व असतात (क्रम खंडित नाही) म्हणून exponential + binary शोध
@@ -185,6 +195,17 @@ function seqReserve(pre){
       function(e){if(e.http===409||/ALREADY_EXISTS/.test(e.message))return tryN(n+1,k+1);throw e;});}
   return seqFindNext(pre).then(function(n){return tryN(n,0);});
 }
+function fsMineNond(){return token().then(function(t){return http('POST',fsBase()+':runQuery',{structuredQuery:{from:[{collectionId:'gpapp_nond'}],where:{fieldFilter:{field:{fieldPath:'uid'},op:'EQUAL',value:{stringValue:SES.uid}}}}},{Authorization:'Bearer '+t});}).then(function(r){
+  return (r||[]).filter(function(x){return x.document;}).map(function(x){return docOut(x.document);}).sort(function(a,b){return String(b.ts).localeCompare(String(a.ts));});});}
+function nondNote(r,home){
+  var t=dkName(r.dk),nm=E(r.name||'');
+  if(r.status==='done')return '<div class="msg ok">✅ <b>'+nm+'</b> ('+E(t)+') — तुमची नोंद केली आहे. आता <b>दाखला मागणी करा</b>.<div class="row" style="margin-top:8px"><button class="s" onclick="goDakhla(\''+E(r.dk)+'\')">📄 दाखला मागवा</button>'+(home?'<button class="s" onclick="seenNond(\''+E(r.code)+'\')">ठीक आहे</button>':'')+'</div></div>';
+  if(r.status==='notfound')return '<div class="msg err">❌ <b>'+nm+'</b> ('+E(t)+') — ग्रामपंचायत रजिस्टरमध्ये नोंद आढळली नाही.'+(r.note?' <br>'+E(r.note):'')+(home?'<div class="row" style="margin-top:8px"><button class="s" onclick="seenNond(\''+E(r.code)+'\')">ठीक आहे</button></div>':'')+'</div>';
+  return '<div class="msg inf">⏳ <b>'+nm+'</b> ('+E(t)+') — नोंद विनंती ग्रामपंचायतीकडे आहे.</div>';
+}
+function seenNond(c){var s=LS.g('GPAPP_SEEN_'+GP.p)||[];if(s.indexOf(c)<0)s.push(c);LS.s('GPAPP_SEEN_'+GP.p,s);vHome();}
+function goDakhla(k){DKSEL=k;tab('dakhla');}
+// ── UPI / भरणा ──
 function upiLink(amt,code){var c=CFG||{};return c.upi?('upi://pay?pa='+encodeURIComponent(c.upi)+'&pn='+encodeURIComponent(c.gp||'ग्रामपंचायत')+'&am='+encodeURIComponent(amt)+'&cu=INR&tn='+encodeURIComponent(code)):'';}
 function copyCode(c){try{navigator.clipboard.writeText(c);}catch(e){}var el=$('cpm');if(el)el.textContent='✅ कॉपी केले';}
 function payBox(amt,code){var c=CFG||{},ul=upiLink(amt,code);return '<div class="card qr"><h2>💳 ₹'+E(amt)+' भरा</h2>'+
@@ -193,49 +214,186 @@ function payBox(amt,code){var c=CFG||{},ul=upiLink(amt,code);return '<div class=
   (c.qr?'<div style="margin-top:10px">किंवा हा QR स्कॅन करा (टीपेत क्रमांक स्वतः लिहा):</div><img src="'+E(c.qr)+'" alt="QR">':'<div class="msg err">ग्रामपंचायतीने QR अपलोड केलेला नाही</div>')+(c.upi?'<div style="margin-top:6px">UPI ID: <b>'+E(c.upi)+'</b></div>':'')+'<small style="display:block;margin-top:6px">रक्कम बदलू नका. भरल्यानंतर खाली UTR / व्यवहार क्रमांक द्या. ग्रामपंचायत कार्यालय तपासून मंजूर करेल.</small></div>';}
 var CUR={shot:'',photo:'',code:'',key:''};
 function shotField(){return '<label>UTR / व्यवहार क्रमांक (१२ अंकी)</label><input id="f-utr" inputmode="numeric" maxlength="30"><label>पेमेंट स्क्रीनशॉट (ऐच्छिक, UTR नसल्यास आवश्यक)</label><input type="file" accept="image/*" onchange="CUR.shot=\'\';var f=this.files[0];if(f)pickImg(f,1000,0.7,function(u){CUR.shot=u;msg(\'f-sm\',u?\'✅ स्क्रीनशॉट जोडला\':\'❌ इमेज वाचता आली नाही\',u?\'ok\':\'err\');})"><div id="f-sm"></div>';}
+// ── खऱ्या नोंदींची यादी (ग्रामपंचायतीने सॉफ्टवेअरमधून पाठवलेली) — शोधासाठी ──
+var IDXM={};
+function normQ(s){return String(s==null?'':s).toLowerCase().replace(/[०-९]/g,function(c){return String('०१२३४५६७८९'.indexOf(c));}).replace(/\s+/g,' ').trim();}
+function loadKind(kind,force){
+  var c=IDXM[kind];if(c&&!force&&Date.now()-c.t<300000)return c.p;
+  var p=fsGet('gpapp/idx').then(function(meta){
+    var n=meta&&meta['c_'+kind];if(!n&&n!==0)return null;
+    var ps=[];for(var i=0;i<n;i++)ps.push(fsGet('gpapp_idx/'+kind+'_'+i));
+    return Promise.all(ps).then(function(docs){var rows=[];docs.forEach(function(d){try{rows=rows.concat(JSON.parse((d&&d.d)||'[]'));}catch(e){}});
+      return {rows:rows.map(function(r){return {r:r,h:normQ(kind==='n8'?r.slice(0,5).join(' '):r.join(' '))};}),upd:meta.upd};});
+  });
+  IDXM[kind]={t:Date.now(),p:p};p.catch(function(){delete IDXM[kind];});return p;
+}
+function dmy(s){var m=/^(\d{4})-(\d{2})-(\d{2})/.exec(s||'');return m?m[3]+'-'+m[2]+'-'+m[1]:(s||'');}
+function rowView(kind,r){ // {t: शीर्षक, s: उपशीर्षक}
+  if(kind==='n8')return {t:r[1],s:'अ.क्र. '+r[0]+(r[3]?' · मिळकत '+r[3]:'')+(r[4]?' · '+r[4]:'')+(r[2]&&r[2]!==r[1]?' · भोगवटदार: '+r[2]:'')};
+  if(kind==='birth')return {t:r[1],s:'जन्म: '+dmy(r[2])+(r[3]?' · वडील: '+r[3]:'')+(r[4]?' · आई: '+r[4]:'')};
+  if(kind==='death')return {t:r[1],s:'मृत्यू: '+dmy(r[2])+(r[3]?' · वडील: '+r[3]:'')+(r[4]?' · पती/पत्नी: '+r[4]:'')};
+  if(kind==='vivah')return {t:r[1]+' व '+r[2],s:'विवाह: '+dmy(r[3])};
+  if(kind==='bpl')return {t:r[1],s:(r[2]?'दा.रे. यादी क्र. '+r[2]:'')+(r[3]?' · कालावधी '+r[3]:'')};
+  if(kind==='nodue')return {t:r[1],s:'येणे बाकी नाही दाखला'};
+  return {t:r[1],s:r[2]?'वय '+r[2]:''};
+}
+function dueOf(r){return (r.length>=7&&r[5]!=null&&r[6]!=null)?{p:+r[5]||0,c:+r[6]||0}:null;}
+var SRCH={kind:'',res:[],tok:0};
+function doSearch(kind,q,outId,pickFn,limit){
+  var o=$(outId);if(!o)return;q=normQ(q);
+  if(q.length<2){o.innerHTML='<small>कमीत कमी २ अक्षरे टाका</small>';SRCH.res=[];return;}
+  var tok=++SRCH.tok;o.innerHTML='<small>⏳ शोधत आहे…</small>';
+  loadKind(kind).then(function(ix){if(tok!==SRCH.tok)return;
+    if(!ix){o.innerHTML='<div class="msg inf">ग्रामपंचायतीने अजून ही यादी ॲपवर पाठवलेली नाही. कृपया ग्रामपंचायत कार्यालयाशी संपर्क करा.</div><div style="margin-top:6px">'+nofoundBtn(kind)+'</div>';return;}
+    var toks=q.split(' '),res=[];
+    for(var i=0;i<ix.rows.length;i++){var x=ix.rows[i],ok=true;for(var k=0;k<toks.length;k++){if(x.h.indexOf(toks[k])<0){ok=false;break;}}if(ok){res.push(x.r);if(res.length>=(limit||30)+1)break;}}
+    SRCH.res=res.slice(0,limit||30);SRCH.kind=kind;
+    if(!res.length){o.innerHTML='<div class="msg err">"'+E(q)+'" या नावाची नोंद सापडली नाही.</div><div id="nofound"></div>';var nf=$('nofound');if(nf)nf.innerHTML=nofoundBtn(kind);return;}
+    o.innerHTML=SRCH.res.map(function(r,i){var v=rowView(kind,r),du=kind==='n8'?dueOf(r):null;
+      return '<div class="card" style="margin:8px 0;padding:10px"><b>'+E(v.t)+'</b><div><small>'+E(v.s)+'</small></div>'+(du?'<div style="margin-top:4px;font-size:13px">थकबाकी: मागील ₹'+du.p+' · चालू ₹'+du.c+' · <b>एकूण ₹'+(du.p+du.c)+'</b></div>':'')+
+        '<button class="s" style="margin-top:6px" onclick="'+pickFn+'('+i+')">✔ हीच नोंद निवडा</button></div>';}).join('')+(res.length>(limit||30)?'<small>अजून नोंदी आहेत — नाव आणखी अचूक टाका.</small>':'')+'<div id="nofound" style="margin-top:6px">'+nofoundBtn(kind)+'</div>';
+  },function(e){if(tok===SRCH.tok)o.innerHTML='<div class="msg err">'+E(errText(e))+'</div>';});
+}
+function nofoundBtn(kind){return kind&&kind!=='tax'?'<small>तुमची नोंद दिसत नाही का?</small> <button class="s" onclick="goNond(\''+E(kind)+'\')">➕ नोंद करून द्या</button>':'';}
+function goNond(k){DKSEL=k;tab('nond');}
+var _dt;function debounce(fn){clearTimeout(_dt);_dt=setTimeout(fn,300);}
+// ── 📄 दाखला (नोंद-आधारित) ──
 function vDakhla(){
-  var types=(CFG&&CFG.types)||[];if(!CFG||CFG.on===false||!types.length){$('m').innerHTML=off()||'<div class="card"><div class="msg inf">ग्रामपंचायतीने अजून दाखले सुरू केलेले नाहीत.</div></div>';return;}
-  CUR={shot:'',photo:'',code:'',key:''};
-  $('m').innerHTML='<div class="card"><h2>📄 ऑनलाइन दाखला मागणी</h2><label>दाखल्याचा प्रकार</label><select id="f-t">'+types.map(function(t){return '<option value="'+t.i+'" data-fee="'+t.fee+'">'+E(t.t)+' — ₹'+t.fee+'</option>';}).join('')+'</select>'+
-   '<label>अर्जदाराचे पूर्ण नाव</label><input id="f-n" value="'+E(SES.name)+'"><label>वडिलांचे / पतीचे नाव</label><input id="f-fa"><label>नाते</label><select id="f-rel"><option>मुलगा</option><option>मुलगी</option><option>पत्नी</option></select><label>वय</label><input id="f-age" inputmode="numeric" maxlength="3"><label>व्यवसाय</label><input id="f-occ"><label>आधार क्रमांक (ऐच्छिक)</label><input id="f-ad" inputmode="numeric" maxlength="12"><label>पत्ता</label><textarea id="f-ad2" rows="2"></textarea>'+
-   '<label>फोटो (ऐच्छिक)</label><input type="file" accept="image/*" onchange="var f=this.files[0];if(f)pickImg(f,300,0.8,function(u){CUR.photo=u;})"><div id="f-m0"></div><button class="p" id="f-b0" onclick="dakhlaNext()">पुढे — भरणा करा ➜</button></div><div id="payStep"></div>';}
+  var list=dkList();if(!CFG||CFG.on===false){$('m').innerHTML=off();return;}
+  CUR={shot:'',photo:'',code:'',key:''};var sel=DKSEL||list[0].k;DKSEL='';
+  $('m').innerHTML='<div class="card"><h2>📄 ऑनलाइन दाखला मागणी</h2><div class="msg inf" style="margin:0 0 6px">आधी तुमचे नाव ग्रामपंचायतीच्या नोंदीतून शोधा. नोंद असेल तरच दाखला मागता येतो; नोंद नसेल तर "➕ नोंद करून द्या" वापरा.</div>'+
+    '<label>दाखल्याचा प्रकार</label><select id="d-k" onchange="dkChange()">'+list.map(function(t){return '<option value="'+E(t.k)+'" data-fee="'+t.fee+'"'+(t.k===sel?' selected':'')+'>'+E(t.t)+' — ₹'+t.fee+'</option>';}).join('')+'</select>'+
+    '<label>नाव / अ.क्र. / क्रमांक टाकून शोधा</label><input id="d-q" placeholder="उदा. रमेश पाटील" oninput="debounce(dkSearch)" autocomplete="off"><div id="d-res" style="margin-top:6px"></div></div><div id="d-sel"></div><div id="payStep"></div>';
+}
+function dkChange(){CUR={shot:'',photo:'',code:'',key:''};$('d-sel').innerHTML='';$('payStep').innerHTML='';dkSearch();}
+function dkSearch(){if(CUR.code)return;doSearch($('d-k').value,$('d-q').value,'d-res','dkPick');}
+function dkPick(i){
+  if(CUR.code)return;var r=SRCH.res[i],kind=SRCH.kind;if(!r)return;var v=rowView(kind,r),o=$('d-k').selectedOptions[0],fee=+o.getAttribute('data-fee')||0;
+  CUR.dk=kind;CUR.rk=String(r[0]);CUR.rname=v.t;CUR.rinfo=v.s;CUR.fee=fee;
+  $('d-res').innerHTML='';
+  $('d-sel').innerHTML='<div class="card"><h2>निवडलेली नोंद</h2><div class="msg ok" style="margin:0"><b>'+E(v.t)+'</b><div style="font-size:13px">'+E(v.s)+'</div></div>'+
+    '<label>अर्जदाराचे (तुमचे) पूर्ण नाव</label><input id="d-n" value="'+E(SES.name)+'"><div id="f-m0"></div><button class="p" id="f-b0" onclick="dakhlaNext()">पुढे — '+(fee>0?'भरणा करा ➜':'मागणी सादर करा ➜')+'</button><button class="s" style="width:100%;margin-top:8px" onclick="dkChange()">दुसरी नोंद निवडा</button></div>';
+  window.scrollTo(0,document.body.scrollHeight);
+}
 function dakhlaNext(){
+  var n=($('d-n').value||'').trim();if(!n)return msg('f-m0','अर्जदाराचे नाव भरा','err');
+  if(CUR.code)return;$('f-b0').disabled=true;msg('f-m0','⏳ क्रमांक तयार करत आहे…');
+  seqReserve('Dakhala').then(function(code){CUR.code=code;CUR.aname=n;msg('f-m0','');$('d-k').disabled=true;$('d-q').disabled=true;$('d-n').disabled=true;
+    $('payStep').innerHTML=(CUR.fee>0?payBox(CUR.fee,code):'<div class="card"><div class="msg ok">हा दाखला मोफत आहे — मागणी क्रमांक <b>'+E(code)+'</b></div></div>')+'<div class="card"><h2>भरणा तपशील</h2>'+(CUR.fee>0?shotField():'')+'<div id="f-m"></div><button class="p" id="f-b" onclick="dakhlaSend()">✅ मागणी सादर करा</button></div>';
+    $('f-b0').style.display='none';window.scrollTo(0,document.body.scrollHeight);},function(e){$('f-b0').disabled=false;msg('f-m0',errText(e),'err');});}
+function dakhlaSend(){
+  var fee=CUR.fee,utr=(($('f-utr')||{}).value||'').trim();
+  if(fee>0&&!utr&&!CUR.shot)return msg('f-m','UTR क्रमांक किंवा स्क्रीनशॉट द्या — भरणा केल्याशिवाय मागणी जतन होत नाही','err');
+  $('f-b').disabled=true;msg('f-m','⏳ पाठवत आहे…');
+  var d={uid:SES.uid,kind:'dakhla',dk:CUR.dk,rk:CUR.rk,rname:CUR.rname,rinfo:CUR.rinfo,code:CUR.code,fee:fee,name:CUR.aname,mob:SES.mob,utr:utr,shot:CUR.shot,status:'paid_pending',ts:new Date().toISOString()};
+  fsCreate('gpapp_req',CUR.code,d).then(function(){msg('f-m','✅ मागणी '+CUR.code+' सादर झाली. ग्रामपंचायत भरणा तपासून मंजूर करेल, मग "माझे" मध्ये दाखला डाउनलोड करा.','ok');setTimeout(function(){tab('mine');},1800);},
+    function(e){$('f-b').disabled=false;msg('f-m',errText(e),'err');});}
+// ── 📝 स्वयंघोषणापत्र (वेगळे; नोंद लागत नाही; सही/शिक्का लागत नाही) ──
+function vSG(){
+  var types=(CFG&&CFG.types)||[];if(!CFG||CFG.on===false||!types.length){$('m').innerHTML=off()||'<div class="card"><div class="msg inf">ग्रामपंचायतीने अजून स्वयंघोषणापत्रे सुरू केलेली नाहीत.</div></div>';return;}
+  CUR={shot:'',photo:'',code:'',key:''};
+  $('m').innerHTML='<div class="card"><h2>📝 स्वयंघोषणापत्र</h2><div class="msg inf" style="margin:0 0 6px">तुमची माहिती भरा — स्वयंघोषणापत्र PDF (प्रिंट) स्वरूपात मिळेल. यावर सही/शिक्का नसतो; प्रिंट काढून स्वतः सही करा.</div><label>स्वयंघोषणापत्राचा प्रकार</label><select id="f-t">'+types.map(function(t){return '<option value="'+t.i+'" data-fee="'+t.fee+'">'+E(t.t)+(t.fee>0?' — ₹'+t.fee:' — मोफत')+'</option>';}).join('')+'</select>'+
+   '<label>अर्जदाराचे पूर्ण नाव</label><input id="f-n" value="'+E(SES.name)+'"><label>वडिलांचे / पतीचे नाव</label><input id="f-fa"><label>नाते</label><select id="f-rel"><option>मुलगा</option><option>मुलगी</option><option>पत्नी</option></select><label>वय</label><input id="f-age" inputmode="numeric" maxlength="3"><label>व्यवसाय</label><input id="f-occ"><label>आधार क्रमांक (ऐच्छिक)</label><input id="f-ad" inputmode="numeric" maxlength="12"><label>पत्ता</label><textarea id="f-ad2" rows="2"></textarea>'+
+   '<label>फोटो (ऐच्छिक)</label><input type="file" accept="image/*" onchange="var f=this.files[0];if(f)pickImg(f,300,0.8,function(u){CUR.photo=u;})"><div id="f-m0"></div><button class="p" id="f-b0" onclick="sgNext()">पुढे ➜</button></div><div id="payStep"></div>';}
+function sgNext(){
   var o=$('f-t').selectedOptions[0],fee=+o.getAttribute('data-fee')||0,n=($('f-n').value||'').trim();
   if(!n)return msg('f-m0','नाव भरा','err');if(!($('f-fa').value||'').trim())return msg('f-m0','वडिलांचे/पतीचे नाव भरा','err');
   if(CUR.code)return;$('f-b0').disabled=true;msg('f-m0','⏳ क्रमांक तयार करत आहे…');
   var go=function(code){CUR.code=code;CUR.fee=fee;CUR.type=+o.value;msg('f-m0','');$('f-t').disabled=true;
-    $('payStep').innerHTML=(fee>0?payBox(fee,code):'<div class="card"><div class="msg ok">हा दाखला मोफत आहे — मागणी क्रमांक <b>'+E(code)+'</b></div></div>')+'<div class="card"><h2>भरणा तपशील</h2>'+(fee>0?shotField():'')+'<div id="f-m"></div><button class="p" id="f-b" onclick="dakhlaSend()">✅ मागणी सादर करा</button></div>';
+    $('payStep').innerHTML=(fee>0?payBox(fee,code):'<div class="card"><div class="msg ok">हे स्वयंघोषणापत्र मोफत आहे — मागणी क्रमांक <b>'+E(code)+'</b></div></div>')+'<div class="card"><h2>'+(fee>0?'भरणा तपशील':'मागणी')+'</h2>'+(fee>0?shotField():'')+'<div id="f-m"></div><button class="p" id="f-b" onclick="sgSend()">✅ मागणी सादर करा</button></div>';
     $('f-b0').style.display='none';window.scrollTo(0,document.body.scrollHeight);};
   seqReserve('Dakhala').then(go,function(e){$('f-b0').disabled=false;msg('f-m0',errText(e),'err');});}
-function dakhlaSend(){
+function sgSend(){
   var fee=CUR.fee,utr=(($('f-utr')||{}).value||'').trim(),n=($('f-n').value||'').trim();
   if(fee>0&&!utr&&!CUR.shot)return msg('f-m','UTR क्रमांक किंवा स्क्रीनशॉट द्या — भरणा केल्याशिवाय मागणी जतन होत नाही','err');
   $('f-b').disabled=true;msg('f-m','⏳ पाठवत आहे…');
-  var d={uid:SES.uid,kind:'dakhla',code:CUR.code,type:CUR.type,fee:fee,name:n,father:$('f-fa').value.trim(),rel:$('f-rel').value,age:$('f-age').value.trim(),occ:$('f-occ').value.trim(),aadh:$('f-ad').value.trim(),addr:$('f-ad2').value.trim(),mob:SES.mob,utr:utr,shot:CUR.shot,photo:CUR.photo,status:'paid_pending',ts:new Date().toISOString()};
-  fsCreate('gpapp_req',CUR.code,d).then(function(){msg('f-m','✅ मागणी '+CUR.code+' सादर झाली. ग्रामपंचायत भरणा तपासून मंजूर करेल, मग "माझे" मध्ये दाखला डाउनलोड करा.','ok');setTimeout(function(){tab('mine');},1800);},
+  var d={uid:SES.uid,kind:'dakhla',dk:'sg',code:CUR.code,type:CUR.type,fee:fee,name:n,father:$('f-fa').value.trim(),rel:$('f-rel').value,age:$('f-age').value.trim(),occ:$('f-occ').value.trim(),aadh:$('f-ad').value.trim(),addr:$('f-ad2').value.trim(),mob:SES.mob,utr:utr,shot:CUR.shot,photo:CUR.photo,status:'paid_pending',ts:new Date().toISOString()};
+  fsCreate('gpapp_req',CUR.code,d).then(function(){msg('f-m','✅ मागणी '+CUR.code+' सादर झाली. ग्रामपंचायत तपासून मंजूर करेल, मग "माझे" मध्ये स्वयंघोषणापत्र डाउनलोड करा.','ok');setTimeout(function(){tab('mine');},1800);},
     function(e){$('f-b').disabled=false;msg('f-m',errText(e),'err');});}
+// ── ➕ नोंद करून द्या (नोंद नसल्यास सर्व माहिती भरून पाठवा; भरणा नाही) ──
+function F(i,l,r,t,o){return {i:i,l:l,r:r?1:0,t:t||'',o:o||null};}
+var SEX=[['पुरुष|Male','पुरुष / Male'],['स्त्री|Female','स्त्री / Female']];
+var NOND_DEF={
+ n8:{name:'n8-owner',f:[F('n8-owner','मालकाचे नाव *',1),F('n8-occ','भोगवटधारकाचे नाव (मालकापेक्षा वेगळे असल्यास)'),F('n8-road','रस्त्याचे / गल्लीचे नाव'),F('n8-pno','मिळकत (घर) नंबर — माहीत असल्यास'),F('n8-gat','गट नंबर (७/१२) — असल्यास'),
+   F('x-type','इमारतीचा प्रकार',1,'sel',[['कच्चे घर','कच्चे घर'],['अर्ध पक्के घर','अर्ध पक्के घर'],['इतर पक्के घर','इतर पक्के घर'],['आर.सी.सी. पद्धतीचे घर','आर.सी.सी. पद्धतीचे घर'],['पडसर / खुली जागा','पडसर / खुली जागा']]),
+   F('x-len','इमारतीची लांबी (फूट)',0,'num'),F('x-wid','इमारतीची रुंदी (फूट)',0,'num'),F('x-byr','बांधकामाचे वर्ष (उदा. 2005)',0,'num'),F('n8-pp','जागेची एकूण लांबी — पूर्व-पश्चिम (फूट)',0,'num'),F('n8-ud','जागेची एकूण रुंदी — उत्तर-दक्षिण (फूट)',0,'num'),
+   F('n8-east','चतुःसीमा — पूर्व'),F('n8-west','चतुःसीमा — पश्चिम'),F('n8-south','चतुःसीमा — दक्षिण'),F('n8-north','चतुःसीमा — उत्तर'),F('n8-wa','WhatsApp नंबर'),F('n8-note','शेरा / अधिक माहिती')]},
+ birth:{name:'b-name',f:[F('b-name','बाळाचे नाव (मराठी) *',1),F('b-name-e','Name of Child (English)'),F('b-sex','लिंग *',1,'sel',SEX),F('b-dob','जन्म तारीख *',1,'date'),F('b-place','जन्म ठिकाण (मराठी)'),F('b-place-e','Place of Birth (English)'),
+   F('b-mother','आईचे पूर्ण नाव (मराठी) *',1),F('b-mother-e','Full Name of Mother (English)'),F('b-mother-aadhaar','आईचा आधार क्र.'),F('b-father','वडिलांचे पूर्ण नाव (मराठी) *',1),F('b-father-e','Full Name of Father (English)'),F('b-father-aadhaar','वडिलांचा आधार क्र.'),
+   F('b-addr','जन्माच्या वेळी पत्ता (मराठी)'),F('b-addr-e','Address at Birth (English)'),F('b-paddr','कायमचा पत्ता (मराठी)'),F('b-paddr-e','Permanent Address (English)'),F('b-note','शेरा / अधिक माहिती')]},
+ death:{name:'d-name',f:[F('d-name','मृताचे नाव (मराठी) *',1),F('d-name-e','Name (English)'),F('d-sex','लिंग *',1,'sel',SEX),F('d-dod','मृत्यू दिनांक *',1,'date'),F('d-age','मृत व्यक्तीचे वय',0,'num'),
+   F('d-age-unit','वयाचे एकक',0,'sel',[['वर्षे|YEARS','वर्षे / Years'],['महिने|MONTHS','महिने / Months'],['दिवस|DAYS','दिवस / Days'],['तास|HOURS','तास / Hours']]),F('d-aadhaar','मृत व्यक्तीचा आधार क्र.'),
+   F('d-father','वडिलांचे नाव (मराठी)'),F('d-father-e','Father\'s Name (English)'),F('d-mother','आईचे नाव (मराठी)'),F('d-mother-e','Mother\'s Name (English)'),F('d-spouse','पती / पत्नीचे नाव (मराठी)'),F('d-spouse-e','Husband / Wife Name (English)'),
+   F('d-place','मृत्यू ठिकाण (मराठी)'),F('d-place-e','Place of Death (English)'),F('d-addr','मृत्यू समयीचा पत्ता (मराठी)'),F('d-addr-e','Address at Death (English)'),F('d-paddr','कायमचा पत्ता (मराठी)'),F('d-paddr-e','Permanent Address (English)'),F('d-note','शेरा / अधिक माहिती')]},
+ vivah:{name:'v-h-name',f:[F('v-h-name','पतीचे नाव (मराठी) *',1),F('v-h-name-e','Husband Name (English)'),F('v-h-addr','पतीचा पत्ता'),F('v-h-aadhaar','पतीचा आधार क्र.'),F('v-w-name','पत्नीचे नाव (मराठी) *',1),F('v-w-name-e','Wife Name (English)'),F('v-w-addr','पत्नीचा पत्ता'),F('v-w-aadhaar','पत्नीचा आधार क्र.'),
+   F('v-date','विवाह दिनांक *',1,'date'),F('v-place','विवाह ठिकाण (मराठी)'),F('v-place-e','Place (English)'),F('v-note','शेरा / अधिक माहिती')]},
+ bpl:{name:'bpl-name',f:[F('bpl-name','नाव (मराठी) *',1),F('bpl-name-e','Name (English)'),F('bpl-no','दारिद्र्य रेषा यादी क्रमांक (माहीत असल्यास)'),F('bpl-period','BPL कालावधी (उदा. 2002 - 2007)')]},
+ nodue:{name:'nd-name',f:[F('nd-name','नाव (मराठी) *',1),F('nd-name-e','Name (English)'),F('x-pno','घर / मिळकत नंबर किंवा अ.क्र. (माहीत असल्यास)')]},
+ niradhar:{name:'nr-name',f:[F('nr-name','नाव (मराठी) *',1),F('nr-name-e','Name (English)'),F('nr-age','वय *',1,'num')]}
+};
+var NK='birth';
+function vNond(){
+  if(!CFG||CFG.on===false){$('m').innerHTML=off();return;}
+  if(DKSEL){NK=DKSEL;DKSEL='';}
+  $('m').innerHTML='<div class="card"><h2>➕ नोंद करून द्या</h2><div class="msg inf" style="margin:0 0 6px">तुमचे नाव शोधूनही नोंद दिसली नाही तर इथे सर्व माहिती भरून पाठवा. ग्रामपंचायत नोंद करेल; "नोंद केली" किंवा "रजिस्टरमध्ये नोंद नाही" असा संदेश तुम्हाला मुख्य पानावर व "माझे" मध्ये दिसेल. नोंद झाल्यावर दाखला मागता येतो. (यासाठी शुल्क नाही.)</div>'+
+   '<label>कशाची नोंद?</label><select id="nk" onchange="NK=this.value;nondForm()">'+DKT.map(function(t){return '<option value="'+t[0]+'"'+(t[0]===NK?' selected':'')+'>'+E(t[1].replace(' दाखला','').replace(' उतारा',' (मालमत्ता)'))+'</option>';}).join('')+'</select><div id="nf"></div></div><div id="nl"></div>';
+  nondForm();nondList();
+}
+function nondForm(){
+  var def=NOND_DEF[NK];$('nf').innerHTML=def.f.map(function(x){var id='nx-'+x.i;
+    if(x.t==='sel')return '<label>'+E(x.l)+'</label><select id="'+id+'">'+(x.r?'<option value="">— निवडा —</option>':'<option value="">—</option>')+x.o.map(function(o){return '<option value="'+E(o[0])+'">'+E(o[1])+'</option>';}).join('')+'</select>';
+    return '<label>'+E(x.l)+'</label><input id="'+id+'"'+(x.t==='date'?' type="date"':'')+(x.t==='num'?' inputmode="numeric"':'')+' autocomplete="off">';}).join('')+
+    '<div id="nm"></div><button class="p" id="nb" onclick="nondSend()">✅ नोंद विनंती पाठवा</button>';
+}
+function nondSend(){
+  var def=NOND_DEF[NK],f=[],miss=null;
+  def.f.forEach(function(x){var v=($('nx-'+x.i).value||'').trim();if(x.r&&!v&&!miss)miss=x.l.replace(' *','');if(v)f.push({i:x.i,l:x.l.replace(' *',''),v:v});});
+  if(miss)return msg('nm','"'+miss+'" भरा','err');
+  var nm=(f.filter(function(x){return x.i===def.name;})[0]||{}).v||'';
+  $('nb').disabled=true;msg('nm','⏳ क्रमांक तयार करत आहे…');
+  seqReserve('Nond').then(function(code){
+    return fsCreate('gpapp_nond',code,{uid:SES.uid,kind:'nond',code:code,dk:NK,name:nm,applicant:SES.name||'',mob:SES.mob,f:f,status:'pending',ts:new Date().toISOString()}).then(function(){
+      msg('nm','✅ विनंती '+code+' पाठवली. ग्रामपंचायत नोंद करून कळवेल.','ok');setTimeout(function(){if(TAB==='nond')vNond();},1500);});
+  }).then(null,function(e){$('nb').disabled=false;msg('nm',errText(e),'err');});
+}
+function nondList(){fsMineNond().then(function(l){if(!$('nl'))return;
+  $('nl').innerHTML=l.length?'<div class="card"><h2>माझ्या नोंद विनंत्या</h2>'+l.map(function(r){return '<div style="margin-bottom:6px"><small>'+E(r.code)+' · '+E(dmy(String(r.ts).slice(0,10)))+'</small>'+nondNote(r,false)+'</div>';}).join('')+'</div>':'';},function(){});}
+// ── 💰 कर शोधा / भरा (खऱ्या नावांवरून थकबाकी) ──
 function vTax(){if(!CFG||CFG.on===false){$('m').innerHTML=off();return;}CUR={shot:'',photo:'',code:'',key:''};
-  $('m').innerHTML='<div class="card"><h2>💰 घरपट्टी / कर भरणा</h2><label>अ.क्र. किंवा मिळकत (घर) क्रमांक</label><input id="t-p"><label>मालमत्ताधारकाचे नाव</label><input id="t-n" value="'+E(SES.name)+'"><label>भरणार असलेली रक्कम (₹)</label><input id="t-a" inputmode="numeric"><small style="display:block;margin-top:6px">तुमची थकबाकी/शिल्लक रक्कम ग्रामपंचायत कार्यालयाकडून विचारा.</small><div id="f-m0"></div><button class="p" id="f-b0" onclick="taxNext()">पुढे — भरणा करा ➜</button></div><div id="payStep"></div>';}
-function taxNext(){var a=Math.round(+($('t-a').value||0)),p=($('t-p').value||'').trim();
-  if(!p)return msg('f-m0','अ.क्र./मिळकत क्रमांक भरा','err');if(!(a>0))return msg('f-m0','रक्कम भरा','err');
-  $('f-b0').disabled=true;msg('f-m0','⏳ क्रमांक तयार करत आहे…');
-  seqReserve('Tax').then(function(code){CUR.code=code;CUR.amount=a;CUR.pno=p;msg('f-m0','');$('t-a').disabled=true;$('t-p').disabled=true;
+  $('m').innerHTML='<div class="card"><h2>💰 घरपट्टी / कर शोधा व भरा</h2><div class="msg inf" style="margin:0 0 6px">मालकाचे नाव, अ.क्र., मिळकत (घर) क्रमांक किंवा गल्लीच्या नावाने शोधा — थकबाकी दिसेल.</div><label>शोधा</label><input id="t-q" placeholder="उदा. पाटील किंवा 125" oninput="debounce(taxSearch)" autocomplete="off"><div id="t-res" style="margin-top:6px"></div></div><div id="t-sel"></div><div id="payStep"></div>';}
+function taxSearch(){if(CUR.code)return;doSearch('n8',$('t-q').value,'t-res','taxPick');var nf=$('nofound');}
+function taxPick(i){
+  if(CUR.code)return;var r=SRCH.res[i];if(!r)return;var v=rowView('n8',r),du=dueOf(r);
+  CUR.pno=String(r[0]);CUR.owner=r[1];CUR.tot=du?du.p+du.c:null;$('t-res').innerHTML='';
+  $('t-sel').innerHTML='<div class="card"><h2>निवडलेली मालमत्ता</h2><div class="msg ok" style="margin:0"><b>'+E(v.t)+'</b><div style="font-size:13px">'+E(v.s)+'</div></div>'+
+   (du?'<table style="width:100%;margin-top:8px;font-size:14px;border-collapse:collapse"><tr><td>मागील थकबाकी</td><td style="text-align:right">₹'+du.p+'</td></tr><tr><td>चालू मागणी (शिल्लक)</td><td style="text-align:right">₹'+du.c+'</td></tr><tr style="font-weight:700;border-top:1px solid #ccc"><td>एकूण भरायची रक्कम</td><td style="text-align:right">₹'+(du.p+du.c)+'</td></tr></table>'+(du.p+du.c<=0?'<div class="msg ok">✅ तुमची कोणतीही थकबाकी नाही.</div>':''):'<div class="msg inf">थकबाकी दाखवलेली नाही — ग्रामपंचायत कार्यालयाकडून विचारा.</div>')+
+   ((!du||du.p+du.c>0)?'<label>भरणार असलेली रक्कम (₹)</label><input id="t-a" inputmode="numeric" value="'+(du?du.p+du.c:'')+'"><label>भरणाऱ्याचे नाव</label><input id="t-n" value="'+E(SES.name)+'"><div id="f-m0"></div><button class="p" id="f-b0" onclick="taxNext()">पुढे — भरणा करा ➜</button>':'')+
+   '<button class="s" style="width:100%;margin-top:8px" onclick="vTax()">दुसरी मालमत्ता शोधा</button></div>';
+  window.scrollTo(0,document.body.scrollHeight);}
+function taxNext(){var a=Math.round(+($('t-a').value||0));
+  if(!(a>0))return msg('f-m0','रक्कम भरा','err');
+  if(CUR.tot!=null&&a>CUR.tot)return msg('f-m0','रक्कम एकूण थकबाकी (₹'+CUR.tot+') पेक्षा जास्त नको','err');
+  if(CUR.code)return;$('f-b0').disabled=true;msg('f-m0','⏳ क्रमांक तयार करत आहे…');
+  seqReserve('Tax').then(function(code){CUR.code=code;CUR.amount=a;CUR.payer=($('t-n').value||'').trim();msg('f-m0','');$('t-a').disabled=true;
     $('payStep').innerHTML=payBox(a,code)+'<div class="card"><h2>भरणा तपशील</h2>'+shotField()+'<div id="f-m"></div><button class="p" id="f-b" onclick="taxSend()">✅ भरणा सादर करा</button></div>';$('f-b0').style.display='none';window.scrollTo(0,document.body.scrollHeight);},
     function(e){$('f-b0').disabled=false;msg('f-m0',errText(e),'err');});}
 function taxSend(){var utr=($('f-utr').value||'').trim();
   if(!utr&&!CUR.shot)return msg('f-m','UTR क्रमांक किंवा स्क्रीनशॉट द्या','err');
   $('f-b').disabled=true;msg('f-m','⏳ पाठवत आहे…');
-  fsCreate('gpapp_req',CUR.code,{uid:SES.uid,kind:'tax',code:CUR.code,amount:CUR.amount,pno:CUR.pno,name:($('t-n').value||'').trim(),mob:SES.mob,utr:utr,shot:CUR.shot,status:'paid_pending',ts:new Date().toISOString()}).then(function(){
+  fsCreate('gpapp_req',CUR.code,{uid:SES.uid,kind:'tax',code:CUR.code,amount:CUR.amount,pno:CUR.pno,rname:CUR.owner,name:CUR.payer||CUR.owner,mob:SES.mob,utr:utr,shot:CUR.shot,status:'paid_pending',ts:new Date().toISOString()}).then(function(){
     msg('f-m','✅ भरणा '+CUR.code+' सादर झाला. मंजुरीनंतर पावती "माझे" मध्ये मिळेल.','ok');setTimeout(function(){tab('mine');},1800);},function(e){$('f-b').disabled=false;msg('f-m',errText(e),'err');});}
+// ── 📋 माझे ──
 var MINE=[];
-function vMine(){$('m').innerHTML='<div class="card">⏳ आणत आहे…</div>';fsMine().then(function(l){MINE=l.sort(function(a,b){return String(b.ts).localeCompare(String(a.ts));});
-  var T=(CFG&&CFG.types)||[],tn=function(r){if(r.kind==='tax')return '🏠 कर भरणा';var t=T.filter(function(x){return x.i===r.type;})[0];return t?t.t:'दाखला';};
+function vMine(){$('m').innerHTML='<div class="card">⏳ आणत आहे…</div>';
+  Promise.all([fsMine(),fsMineNond().then(null,function(){return [];})]).then(function(res){var l=res[0],nl=res[1];MINE=l.sort(function(a,b){return String(b.ts).localeCompare(String(a.ts));});
+  var T=(CFG&&CFG.types)||[],tn=function(r){if(r.kind==='tax')return '🏠 कर भरणा';if(r.dk&&r.dk!=='sg')return dkName(r.dk);var t=T.filter(function(x){return x.i===r.type;})[0];return t?t.t:'स्वयंघोषणापत्र';};
   var bd={paid_pending:'<span class="badge b-p">⏳ पडताळणी सुरू</span>',approved:'<span class="badge b-a">✅ मंजूर</span>',rejected:'<span class="badge b-r">❌ नाकारले</span>'};
-  $('m').innerHTML=(MINE.length?MINE.map(function(r,i){return '<div class="card"><div class="row"><b style="flex:1">'+E(tn(r))+(r.code?' · '+E(r.code):'')+'</b>'+(bd[r.status]||'')+'</div><small>'+E(String(r.ts).slice(0,10).split('-').reverse().join('-'))+' · ₹'+E(r.kind==='tax'?r.amount:r.fee)+(r.utr?' · UTR '+E(r.utr):'')+'</small>'+
-    (r.status==='rejected'?'<div class="msg err">'+E(r.note||'')+'</div>':'')+(r.status==='approved'&&r.certHtml?'<button class="p" onclick="openCert('+i+')">⬇️ '+(r.kind==='tax'?'पावती':'दाखला')+' डाउनलोड / प्रिंट (PDF)</button>':'')+'</div>';}).join(''):'<div class="card"><div class="msg inf">अजून कोणतीही मागणी नाही.</div></div>')+'<button class="s" style="width:100%" onclick="vMine()">🔄 ताजे करा</button>';},
+  var nh=nl.length?'<div class="card"><h2>➕ माझ्या नोंद विनंत्या</h2>'+nl.map(function(r){return '<div style="margin-bottom:6px"><small>'+E(r.code)+' · '+E(dmy(String(r.ts).slice(0,10)))+'</small>'+nondNote(r,false)+'</div>';}).join('')+'</div>':'';
+  $('m').innerHTML=nh+(MINE.length?MINE.map(function(r,i){var amt=r.kind==='tax'?r.amount:r.fee;return '<div class="card"><div class="row"><b style="flex:1">'+E(tn(r))+(r.code?' · '+E(r.code):'')+'</b>'+(bd[r.status]||'')+'</div>'+(r.rname&&r.kind!=='tax'?'<div style="font-size:13px">'+E(r.rname)+'</div>':'')+'<small>'+E(String(r.ts).slice(0,10).split('-').reverse().join('-'))+' · ₹'+E(amt)+(r.utr?' · UTR '+E(r.utr):'')+'</small>'+
+    (r.status==='rejected'?'<div class="msg err">'+E(r.note||'')+'</div>':'')+(r.status==='approved'&&r.certHtml?'<button class="p" onclick="openCert('+i+')">⬇️ '+(r.kind==='tax'?'पावती':(r.dk==='sg'||!r.dk?'स्वयंघोषणापत्र':'दाखला'))+' डाउनलोड / प्रिंट (PDF)</button>':'')+'</div>';}).join(''):'<div class="card"><div class="msg inf">अजून कोणतीही मागणी नाही.</div></div>')+'<button class="s" style="width:100%" onclick="vMine()">🔄 ताजे करा</button>';},
   function(e){$('m').innerHTML='<div class="card"><div class="msg err">'+E(errText(e))+'</div></div>';});}
 function openCert(i){var r=MINE[i];if(!r||!r.certHtml)return;
-  var h='<!doctype html><html><head><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="script-src \'none\'"><meta name="viewport" content="width=device-width,initial-scale=1"><title>'+E((r.kind==='tax'?'पावती-':'दाखला-')+(r.certNo||''))+'</title><style>@page{size:A4;margin:8mm}body{margin:0;font-family:Mangal,\'Noto Sans Devanagari\',serif}.bar{background:#0D2B5E;color:#fff;padding:10px;text-align:center}.bar a{color:#fff;font-weight:700}@media print{.bar{display:none}}</style></head><body><div class="bar">PDF साठी: ब्राउझरचा "Print / प्रिंट" → "Save as PDF" निवडा (मेनू ⋮ → Print)</div>'+r.certHtml+'</body></html>';
+  var h='<!doctype html><html><head><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="script-src \'none\'"><meta name="viewport" content="width=device-width,initial-scale=1"><title>'+E((r.kind==='tax'?'पावती-':'दाखला-')+(r.certNo||r.code||''))+'</title><style>@page{size:A4'+(r.land?' landscape':'')+';margin:8mm}body{margin:0;font-family:Mangal,\'Noto Sans Devanagari\',serif}.bar{background:#0D2B5E;color:#fff;padding:10px;text-align:center}.bar a{color:#fff;font-weight:700}@media print{.bar{display:none}}</style></head><body><div class="bar">PDF साठी: ब्राउझरचा "Print / प्रिंट" → "Save as PDF" निवडा (मेनू ⋮ → Print)</div>'+r.certHtml+'</body></html>';
   var b=new Blob([h],{type:'text/html'}),u=URL.createObjectURL(b),w=window.open(u,'_blank');if(!w)location.href=u;}
 function vWeb(){var w=CFG&&CFG.web;$('m').innerHTML=w?'<div class="card" style="padding:6px"><iframe src="'+E(w)+'" title="ग्रामपंचायत वेबसाईट"></iframe><div style="text-align:center;margin-top:6px"><a href="'+E(w)+'" target="_blank" rel="noopener">वेबसाईट वेगळ्या टॅबमध्ये उघडा ↗</a></div></div>':'<div class="card"><div class="msg inf">ग्रामपंचायतीने वेबसाईट अजून प्रकाशित केलेली नाही.</div></div>';}
 boot();
