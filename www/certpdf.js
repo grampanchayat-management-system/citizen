@@ -185,7 +185,8 @@
       }
       var base = (r.kind === 'tax' ? 'Pavati-' : 'Dakhala-') + String(r.certNo || r.code || Date.now()).replace(/[^\w.-]+/g, '_');
       var title = (r.kind === 'tax' ? 'पावती-' : 'दाखला-') + (r.certNo || r.code || '');
-      return { blob: pdfBuild(pages, pwPt, phPt, title), name: base + '.pdf', title: title, pages: count };
+      var jpgBlob = null; try { jpgBlob = new Blob([canvasJpeg(cv)], { type: 'image/jpeg' }); } catch (e) {}
+      return { blob: pdfBuild(pages, pwPt, phPt, title), name: base + '.pdf', title: title, pages: count, jpg: jpgBlob, jname: base + '.jpg' };
     }).then(function (res) { if (fr && fr.parentNode) fr.parentNode.removeChild(fr); return res; },
             function (e) { if (fr && fr.parentNode) fr.parentNode.removeChild(fr); throw e; });
   }
@@ -213,11 +214,33 @@
       Promise.resolve(p).then(function (v) { clearTimeout(t); res(v); }, function (e) { clearTimeout(t); rej(e); });
     });
   }
-  function isNative() { var C = window.Capacitor; if (!C || !C.registerPlugin) return false; try { if (C.getPlatform && C.getPlatform() !== 'web') return true; if (C.isNativePlatform && C.isNativePlatform()) return true; } catch (e) {} return false; }
+  // APK (Capacitor WebView) ओळख — registerPlugin नसला तरी चालते; Android WebView मध्ये ब्राउझरसारखे blob-download चालत नाही म्हणून चुकीने "ब्राउझर" समजू नये
+  function isNative() {
+    var C = window.Capacitor;
+    try {
+      if (C) {
+        if (C.isNativePlatform && C.isNativePlatform()) return true;
+        if (C.getPlatform && C.getPlatform() !== 'web') return true;
+        if (C.Plugins && C.Plugins.Filesystem && (C.registerPlugin || C.nativeCallback || C.PluginHeaders)) return true;
+        if (C.PluginHeaders || C.nativePromise || C.nativeCallback) return true;
+      }
+      if (window.CapacitorCustomPlatform || window.androidBridge) return true;
+      if (location.protocol === 'https:' && location.hostname === 'localhost' && /Android/i.test(navigator.userAgent)) return true;
+    } catch (e) {}
+    return false;
+  }
+  function plug(n) {
+    var C = window.Capacitor;
+    if (!C) throw new Error('Capacitor नाही');
+    if (C.registerPlugin) { try { return C.registerPlugin(n); } catch (e) {} }
+    if (C.Plugins && C.Plugins[n]) return C.Plugins[n];
+    throw new Error(n + ' plugin सापडला नाही');
+  }
+  function isWebView() { return /; wv\)|Version\/[\d.]+ Chrome\/[\d.]+ Mobile/i.test(navigator.userAgent) && /Android/i.test(navigator.userAgent); }
   function msgOf(e) { return String((e && (e.message || e.errorMessage)) || e); }
   // APK: PDF आधी cache मध्ये (परवानगी नको) → लगेच PDF व्ह्यूअरमध्ये उघडतो; Documents/MajhiGramPanchayat मध्ये प्रत मागे जतन (अडकली तरी हरकत नाही).
   function nativeWrite(res) {
-    var C = window.Capacitor, FS = C.registerPlugin('Filesystem');
+    var FS = plug('Filesystem');
     return blobB64(res.blob).then(function (b64) {
       var o = { saved: null, p: null };
       o.p = tmo(FS.writeFile({ path: 'MajhiGramPanchayat/' + res.name, data: b64, directory: 'DOCUMENTS', recursive: true }), 6000, 'Documents')
@@ -226,28 +249,36 @@
     });
   }
   function nativeShare(res, o) {
-    var SH = window.Capacitor.registerPlugin('Share');
+    var SH = plug('Share');
     return tmo(SH.share({ title: res.title, url: o.uri, dialogTitle: 'PDF जतन करा / पाठवा' }), 120000, 'शेअर').then(function () { return 'shared'; },
       function (e) { if (/cancel/i.test(msgOf(e))) return 'cancelled'; throw e; });
   }
   function certPdfDeliver(res) {
     if (isNative()) {
       return nativeWrite(res).then(function (o) {
-        return tmo(window.Capacitor.registerPlugin('FileOpener').open({ filePath: o.uri, contentType: 'application/pdf', openWithDefault: true }), 8000, 'PDF उघडणे')
+        return tmo(plug('FileOpener').open({ filePath: o.uri, contentType: res.mime || 'application/pdf', openWithDefault: true }), 8000, 'PDF उघडणे')
           .then(function () { return 'opened'; },
                 function (e) { console.warn('open failed', e); return nativeShare(res, o); }); // व्ह्यूअर नसेल तर शेअर/जतन शीट
       }).catch(function (e) { throw new Error('PDF फोनवर जतन/उघडता आला नाही (' + msgOf(e) + ')'); });
+    }
+    if (isWebView()) { // ॲपच्या WebView मध्ये blob-download शांतपणे अयशस्वी होतो — खोटा "यशस्वी" संदेश नको
+      try {
+        var wf = new File([res.blob], res.name, { type: res.mime || 'application/pdf' });
+        if (navigator.canShare && navigator.canShare({ files: [wf] })) {
+          return navigator.share({ files: [wf], title: res.title }).then(function () { return 'shared'; }, function (e) { if (e && e.name === 'AbortError') return 'cancelled'; throw new Error('शेअर अयशस्वी'); });
+        }
+      } catch (e) {}
+      return Promise.reject(new Error('ॲपमधून PDF जतन होऊ शकला नाही — ॲपची नवीन आवृत्ती (APK) बसवा. [Capacitor: ' + (window.Capacitor ? 'होय' : 'नाही') + ']'));
     }
     return Promise.resolve(browserDownload(res));
   }
   // 📤 पाठवा: फोनची शेअर शीट (WhatsApp, Telegram, ईमेल इ.) मध्ये PDF
   function certPdfShare(res) {
-    var C = window.Capacitor;
-    if (C && C.isNativePlatform && C.isNativePlatform() && C.registerPlugin) {
+    if (isNative()) {
       return nativeWrite(res).then(function (o) { return nativeShare(res, o); }).catch(function (e) { throw new Error('PDF पाठवता आला नाही (' + msgOf(e) + ')'); });
     }
     try {
-      var f = new File([res.blob], res.name, { type: 'application/pdf' });
+      var f = new File([res.blob], res.name, { type: res.mime || 'application/pdf' });
       if (navigator.canShare && navigator.canShare({ files: [f] })) {
         return navigator.share({ files: [f], title: res.title }).then(function () { return 'shared'; }, function (e) { if (e && e.name === 'AbortError') return 'cancelled'; return browserDownload(res); });
       }
@@ -261,6 +292,12 @@
     return Promise.resolve('opened');
   }
 
+  // 🖼️ फोटो (JPEG) — पूर्ण दाखला एका चित्रात; पोहोच PDF सारखीच (APK: जतन + व्ह्यूअर, ब्राउझर: डाउनलोड)
+  function imgRes(res) { if (!res || !res.jpg) throw new Error('फोटो तयार झाला नाही'); return { blob: res.jpg, name: res.jname, title: res.title, mime: 'image/jpeg' }; }
+  function certImgDeliver(res) { return certPdfDeliver(imgRes(res)); }
+  function certImgShare(res) { return certPdfShare(imgRes(res)); }
+  window.certImgDeliver = certImgDeliver;
+  window.certImgShare = certImgShare;
   window.certPdfMake = certPdfMake;
   window.certPdfDeliver = certPdfDeliver;
   window.certPdfOpen = certPdfOpen;

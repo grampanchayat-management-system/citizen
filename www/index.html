@@ -511,18 +511,18 @@ function vMine(){$('m').innerHTML='<div class="card">⏳ आणत आहे…<
   var bd={paid_pending:'<span class="badge b-p">⏳ पडताळणी सुरू</span>',approved:'<span class="badge b-a">✅ मंजूर</span>',rejected:'<span class="badge b-r">❌ नाकारले</span>'};
   var nh=nl.length?'<div class="card"><h2>➕ माझ्या नोंद विनंत्या</h2>'+nl.map(function(r){return '<div style="margin-bottom:6px"><small>'+E(r.code)+' · '+E(dmy(String(r.ts).slice(0,10)))+'</small>'+nondNote(r,false)+'</div>';}).join('')+'</div>':'';
   $('m').innerHTML=nh+(MINE.length?MINE.map(function(r,i){var amt=r.kind==='tax'?r.amount:r.fee,sp=(r.kind==='tax'&&(r.amtGh!=null||r.amtPa!=null))?'<div style="font-size:12.5px;color:#444">🏠 ग्रामनिधी ₹'+E(r.amtGh||0)+' · 💧 पाणीपट्टी ₹'+E(r.amtPa||0)+'</div>':'';return '<div class="card"><div class="row"><b style="flex:1">'+E(tn(r))+(r.code?' · '+E(r.code):'')+'</b>'+(bd[r.status]||'')+'</div>'+(r.rname&&r.kind!=='tax'?'<div style="font-size:13px">'+E(r.rname)+'</div>':'')+sp+'<small>'+E(String(r.ts).slice(0,10).split('-').reverse().join('-'))+' · ₹'+E(amt)+(r.utr?' · UTR '+E(r.utr):'')+'</small>'+
-    (r.status==='rejected'?'<div class="msg err">'+E(r.note||'')+'</div>':'')+(r.status==='approved'&&r.certHtml?'<button class="p" id="pdfb'+i+'" onclick="dlCert('+i+',0)">⬇️ '+(r.kind==='tax'?'पावती':(r.dk==='sg'||!r.dk?'स्वयंघोषणापत्र':'दाखला'))+' डाउनलोड</button>':'')+'</div>';}).join(''):'<div class="card"><div class="msg inf">अजून कोणतीही मागणी नाही.</div></div>')+'<button class="s" style="width:100%" onclick="vMine()">🔄 ताजे करा</button>';},
+    (r.status==='rejected'?'<div class="msg err">'+E(r.note||'')+'</div>':'')+(r.status==='approved'&&r.certHtml?'<button class="p" id="pdfb'+i+'" onclick="dlCert('+i+',0)">⬇️ '+(r.kind==='tax'?'पावती':(r.dk==='sg'||!r.dk?'स्वयंघोषणापत्र':'दाखला'))+' PDF डाउनलोड</button><button class="s" style="width:100%;margin-top:6px" id="imgb'+i+'" onclick="dlCert('+i+',3)">🖼️ फोटो (JPEG) डाउनलोड</button>':'')+'</div>';}).join(''):'<div class="card"><div class="msg inf">अजून कोणतीही मागणी नाही.</div></div>')+'<button class="s" style="width:100%" onclick="vMine()">🔄 ताजे करा</button>';},
   function(e){$('m').innerHTML='<div class="card"><div class="msg err">'+E(errText(e))+'</div></div>';});}
 // ⬇️ PDF डाउनलोड / 🖨️ प्रिंट — सॉफ्टवेअरच्या PDF सारखाच, एकाच A4 पानात (certpdf.js)
-function dlCert(i,mode){var printOnly=(mode===1),share=(mode===2);var r=MINE[i];if(!r||!r.certHtml)return;
-  var btn=$('pdfb'+i),old=btn&&btn.innerHTML,done=false;if(btn){btn.disabled=true;btn.innerHTML='⏳ तयार होत आहे…';}
+function dlCert(i,mode){var printOnly=(mode===1),share=(mode===2),asImg=(mode===3);var r=MINE[i];if(!r||!r.certHtml)return;
+  var btn=$(asImg?'imgb'+i:'pdfb'+i),old=btn&&btn.innerHTML,done=false;if(btn){btn.disabled=true;btn.innerHTML='⏳ तयार होत आहे…';}
   var back=function(){if(btn){btn.disabled=false;btn.innerHTML=old;}};
   var fin=function(res){if(done)return;done=true;clearTimeout(wd);back();
-    if(res==='saved')alert('✅ PDF डाउनलोड झाला — फोनच्या Downloads मध्ये पहा.\n(टीप: तुम्ही ॲप APK मध्ये नसून ब्राउझरमध्ये आहात; APK मध्ये PDF आपोआप उघडतो व तिथून WhatsApp वर पाठवता येतो.)');};
-  var fail=function(e){if(done)return;done=true;clearTimeout(wd);back();alert('PDF तयार करता आले नाही: '+((e&&e.message)||e));};
+    if(res==='saved')alert('✅ '+(asImg?'फोटो':'PDF')+' डाउनलोड सुरू केला — ब्राउझरच्या Downloads मध्ये पहा.');};
+  var fail=function(e){if(done)return;done=true;clearTimeout(wd);back();alert((asImg?'फोटो':'PDF')+' तयार करता आले नाही: '+((e&&e.message)||e));};
   var wd=setTimeout(function(){fail(new Error('वेळ संपला — पुन्हा प्रयत्न करा'));},90000);
   if(!window.certPdfMake){fail(new Error('PDF साधन लोड झाले नाही — ॲप पुन्हा उघडा.'));return;}
-  certPdfMake(r).then(function(res){return (printOnly?certPdfOpen(res):share?certPdfShare(res):certPdfDeliver(res));}).then(fin,fail);}
+  certPdfMake(r).then(function(res){return (printOnly?certPdfOpen(res):share?certPdfShare(res):asImg?certImgDeliver(res):certPdfDeliver(res));}).then(fin,fail);}
 
 // ── 📢 सूचना / 🚨 आणीबाणी ──
 // ग्रामपंचायत सॉफ्टवेअर 'gpapp/notices' मध्ये यादी (JSON) ठेवते: [{i:id,k:'n'|'e',x:मजकूर,ts}]. ॲप उघडे असताना दर २० सेकंदांनी तपासते.
@@ -605,9 +605,9 @@ function ntNotify(title,body,urgent){
 }
 function ntAskPerm(){try{Notification.requestPermission().then(function(){if(TAB==='notice')ntRender();});}catch(e){}}
 function ntBanner(x){var o=$('ntb');if(o)o.remove();o=document.createElement('div');o.id='ntb';
-  o.innerHTML='<b>📢 नवीन सूचना</b><div style="margin-top:4px;white-space:pre-wrap">'+E(x.x.length>160?x.x.slice(0,160)+'…':x.x)+'</div><button id="ntb-l">🔊 ऐका</button><button id="ntb-p">पहा</button><button id="ntb-x">बंद</button>';
+  o.innerHTML='<b>📢 नवीन सूचना</b><div style="margin-top:4px;white-space:pre-wrap">'+E(x.x.length>160?x.x.slice(0,160)+'…':x.x)+'</div><button id="ntb-p">पहा</button><button id="ntb-x">बंद</button>';
   document.body.appendChild(o);
-  $('ntb-l').onclick=function(){ntSpeak(x.x);};$('ntb-p').onclick=function(){o.remove();tab('notice');};$('ntb-x').onclick=function(){o.remove();};
+  $('ntb-p').onclick=function(){o.remove();tab('notice');};$('ntb-x').onclick=function(){o.remove();};
   setTimeout(function(){if(o.parentNode)o.remove();},15000);}
 // ── 🔊 मराठी आवाजात वाचन (फोनचे TTS; मराठी आवाज नसल्यास हिंदी) ──
 function ntVoice(){try{var v=speechSynthesis.getVoices()||[],f=function(p){return v.filter(function(x){return String(x.lang).toLowerCase().replace('_','-').indexOf(p)===0;})[0];};return f('mr')||f('hi');}catch(e){return null;}}
@@ -659,7 +659,7 @@ function sirenStop(){if(NT.osc){try{NT.osc.disconnect();}catch(e){}try{NT.osc.st
 function showEm(x,ring){
   var o=$('em');if(o)o.remove();NT.cur=x;o=document.createElement('div');o.id='em';
   o.innerHTML='<div style="font-size:64px;line-height:1">🚨</div><h1>आणीबाणी सूचना</h1><div style="font-size:14px;opacity:.9">'+E((CFG&&CFG.gp)||'ग्रामपंचायत')+' · '+E(ntDt(x.ts))+'</div><div class="emt">'+E(x.x)+'</div><div id="em-h" style="font-size:14px;margin-bottom:6px"></div>'+
-    '<button style="background:#fff;color:#b71c1c" onclick="ntSpeakCur()">🔊 ऐका</button>'+(ring?'<button id="em-s" style="background:#ffeb3b;color:#000" onclick="sirenStop();this.style.display=\'none\'">🔕 सायरन बंद करा</button>':'')+
+    (ring?'<button id="em-s" style="background:#ffeb3b;color:#000" onclick="sirenStop();this.style.display=\'none\'">🔕 सायरन बंद करा</button>':'')+
     '<button style="background:#0D2B5E;color:#fff" onclick="emClose()">ठीक आहे / बंद करा</button>';
   document.body.appendChild(o);if(ring)sirenStart();
 }
@@ -672,7 +672,7 @@ function ntRender(){
   var el=$('ntl');if(!el)return;var l=NT.list||[],p=$('ntp');
   if(p)p.innerHTML=(!ntLN()&&'Notification' in window&&Notification.permission==='default')?'<div class="msg inf">🔔 फोनवर नोटिफिकेशन हवे असल्यास <button class="s" onclick="ntAskPerm()">नोटिफिकेशन चालू करा</button></div>':'';
   el.innerHTML=l.length?l.map(function(x,i){var e=x.k==='e';
-    return '<div class="card nt'+(e?' e':'')+'"><div class="row"><b style="flex:1;color:'+(e?'#b71c1c':'#0D2B5E')+'">'+(e?'🚨 आणीबाणी संदेश':'📢 सूचना')+'</b><small>'+E(ntDt(x.ts))+'</small></div><div class="tx">'+E(x.x)+'</div><div class="row"><button class="s" style="flex:1" onclick="ntSpeakIdx('+i+')">🔊 ऐका</button>'+(e?'<button class="s" style="flex:1;border-color:#b71c1c;color:#b71c1c" onclick="openEm('+i+')">🚨 मोठ्या स्क्रीनवर पहा</button>':'')+'</div></div>';}).join(''):'<div class="card"><div class="msg inf">अजून कोणतीही सूचना नाही.</div></div>';
+    return '<div class="card nt'+(e?' e':'')+'"><div class="row"><b style="flex:1;color:'+(e?'#b71c1c':'#0D2B5E')+'">'+(e?'🚨 आणीबाणी संदेश':'📢 सूचना')+'</b><small>'+E(ntDt(x.ts))+'</small></div><div class="tx">'+E(x.x)+'</div>'+(e?'<div class="row"><button class="s" style="flex:1;border-color:#b71c1c;color:#b71c1c" onclick="openEm('+i+')">🚨 मोठ्या स्क्रीनवर पहा</button></div>':'')+'</div>';}).join(''):'<div class="card"><div class="msg inf">अजून कोणतीही सूचना नाही.</div></div>';
 }
 function vWeb(){var w=CFG&&CFG.web;$('m').innerHTML=w?'<div class="card" style="padding:6px"><iframe src="'+E(w)+'" title="ग्रामपंचायत वेबसाईट"></iframe><div style="text-align:center;margin-top:6px"><a href="'+E(w)+'" target="_blank" rel="noopener">वेबसाईट वेगळ्या टॅबमध्ये उघडा ↗</a></div></div>':'<div class="card"><div class="msg inf">ग्रामपंचायतीने वेबसाईट अजून प्रकाशित केलेली नाही.</div></div>';}
 boot();
