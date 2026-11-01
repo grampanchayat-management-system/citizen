@@ -187,12 +187,12 @@ function enter(){
     if(CFG&&CFG.gp)$('ttl').textContent='🏛️ '+CFG.gp+(CFG.tal?' · '+CFG.tal:'');tab('home');ntStart();},function(){});
 }
 var DKSEL='';
-function navDraw(){var N=[['home','🏠','मुख्य'],['notice','📢','सूचना'],['dakhla','📄','दाखला'],['sg','📝','घोषणा'],['nond','➕','नोंद'],['tax','💰','कर'],['mine','📋','माझे'],['comp','📣','तक्रार'],['web','🌐','वेबसाईट']],un=ntUnread();
+function navDraw(){var N=[['home','🏠','मुख्य'],['notice','📢','नोटीस बोर्ड'],['dakhla','📄','दाखला'],['sg','📝','घोषणा'],['nond','➕','नोंद'],['tax','💰','कर'],['mine','📋','माझे'],['comp','📣','तक्रार'],['web','🌐','वेबसाईट']],un=ntUnread();
   $('nav').innerHTML=N.map(function(x){return '<button class="'+(x[0]===TAB?'on':'')+'" onclick="tab(\''+x[0]+'\')"><span>'+x[1]+(x[0]==='notice'&&un?'<i class="bdg">'+un+'</i>':'')+'</span>'+x[2]+'</button>';}).join('');}
 function tab(t){TAB=t;navDraw();({home:vHome,notice:vNotice,dakhla:vDakhla,sg:vSG,nond:vNond,tax:vTax,mine:vMine,comp:vComp,web:vWeb})[t]();window.scrollTo(0,0);}
 function off(){return !CFG||CFG.on===false?'<div class="card"><div class="msg err">सध्या ही सेवा ग्रामपंचायतीने बंद ठेवली आहे किंवा माहिती उपलब्ध नाही.</div></div>':'';}
 function homeGrid(){var un=0;try{un=ntUnread();}catch(e){}
-  var T=[['dakhla','📄','दाखला मागवा','#e3f0ff'],['sg','📝','स्वयंघोषणा-पत्र','#fff3e0'],['tax','💰','कर शोधा / भरा','#e6f4ea'],['nond','➕','नोंद करून द्या','#f3e5f5'],['comp','📣','तक्रार / सूचना','#fde8e8'],['mine','📋','माझ्या मागण्या / डाउनलोड','#e0f7fa'],['notice','📢','सूचना','#fff8e1'],['web','🌐','वेबसाईट','#e8eaf6']];
+  var T=[['dakhla','📄','दाखला मागवा','#e3f0ff'],['sg','📝','स्वयंघोषणा-पत्र','#fff3e0'],['tax','💰','कर शोधा / भरा','#e6f4ea'],['nond','➕','नोंद करून द्या','#f3e5f5'],['comp','📣','तक्रार / सूचना','#fde8e8'],['mine','📋','माझ्या मागण्या / डाउनलोड','#e0f7fa'],['notice','📢','नोटीस बोर्ड','#fff8e1'],['web','🌐','वेबसाईट','#e8eaf6']];
   return '<div class="grid3">'+T.map(function(x){return '<button class="tile" onclick="tab(\''+x[0]+'\')"><span class="ic" style="background:'+x[3]+'">'+x[1]+'</span><span class="lb">'+x[2]+'</span>'+(x[0]==='notice'&&un?'<i class="bdg">'+un+'</i>':'')+'</button>';}).join('')+'</div>';}
 function saveMyName(){var n=($('hnn').value||'').trim();if(!n)return;SES.name=n;LS.s('GPAPP_NAME_'+SES.mob,n);LS.s(sesKey(),SES);
   try{http('POST',authUrl('update'),{idToken:SES.idToken,displayName:n,returnSecureToken:false});}catch(e){}vHome();}
@@ -686,7 +686,7 @@ function ntRender(){
   var el=$('ntl');if(!el)return;var l=NT.list||[],p=$('ntp');
   if(p)p.innerHTML=(!ntLN()&&'Notification' in window&&Notification.permission==='default')?'<div class="msg inf">🔔 फोनवर नोटिफिकेशन हवे असल्यास <button class="s" onclick="ntAskPerm()">नोटिफिकेशन चालू करा</button></div>':'';
   el.innerHTML=l.length?l.map(function(x,i){var e=x.k==='e';
-    return '<div class="card nt'+(e?' e':'')+'"><div class="row"><b style="flex:1;color:'+(e?'#b71c1c':'#0D2B5E')+'">'+(e?'🚨 आणीबाणी संदेश':'📢 सूचना')+'</b><small>'+E(ntDt(x.ts))+'</small></div><div class="tx">'+E(x.x)+'</div>'+(e?'<div class="row"><button class="s" style="flex:1;border-color:#b71c1c;color:#b71c1c" onclick="openEm('+i+')">🚨 मोठ्या स्क्रीनवर पहा</button></div>':'')+'</div>';}).join(''):'<div class="card"><div class="msg inf">अजून कोणतीही सूचना नाही.</div></div>';
+    return '<div class="card nt'+(e?' e':'')+'"><div class="row"><b style="flex:1;color:'+(e?'#b71c1c':'#0D2B5E')+'">'+(e?'🚨 आणीबाणी संदेश':'📢 नोटीस')+'</b><small>'+E(ntDt(x.ts))+'</small></div><div class="tx">'+E(x.x)+'</div>'+(e?'<div class="row"><button class="s" style="flex:1;border-color:#b71c1c;color:#b71c1c" onclick="openEm('+i+')">🚨 मोठ्या स्क्रीनवर पहा</button></div>':'')+'</div>';}).join(''):'<div class="card"><div class="msg inf">अजून कोणतीही सूचना नाही.</div></div>';
 }
 function vWeb(){var w=CFG&&CFG.web;$('m').innerHTML=w?'<div class="card" style="padding:6px"><iframe src="'+E(w)+'" title="ग्रामपंचायत वेबसाईट"></iframe><div style="text-align:center;margin-top:6px"><a href="'+E(w)+'" target="_blank" rel="noopener">वेबसाईट वेगळ्या टॅबमध्ये उघडा ↗</a></div></div>':'<div class="card"><div class="msg inf">ग्रामपंचायतीने वेबसाईट अजून प्रकाशित केलेली नाही.</div></div>';}
 boot();
