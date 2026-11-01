@@ -21,3 +21,33 @@ if (!/versionCode\s+\d+/.test(g)) throw new Error('build.gradle मध्ये 
 g = g.replace(/versionCode\s+\d+/, 'versionCode ' + vc).replace(/versionName\s+"[^"]*"/, 'versionName "1.0.' + vc + '"');
 fs.writeFileSync(gradle, g);
 console.log('[prepare] versionCode', vc);
+
+// 📢 सूचना / 🚨 आणीबाणी: नोटिफिकेशन (Android 13+) व कंपन परवानग्या AndroidManifest मध्ये टाकतो
+const manifest = path.join(appDir, 'AndroidManifest.xml');
+let mf = fs.readFileSync(manifest, 'utf8');
+for (const perm of ['android.permission.POST_NOTIFICATIONS', 'android.permission.VIBRATE']) {
+  if (!mf.includes(perm)) mf = mf.replace(/<application/, '<uses-permission android:name="' + perm + '" />\n    <application');
+}
+fs.writeFileSync(manifest, mf);
+console.log('[prepare] manifest permissions ok');
+
+// 🚨 आणीबाणी सायरन आवाज (notification channel "gp-alarm" साठी res/raw/siren.wav)
+const rawDir = path.join(appDir, 'res', 'raw');
+fs.mkdirSync(rawDir, { recursive: true });
+fs.copyFileSync(path.join(root, 'android-res', 'raw', 'siren.wav'), path.join(rawDir, 'siren.wav'));
+if (!fs.existsSync(path.join(root, 'android', 'app', 'google-services.json'))) console.warn('[prepare] ⚠️ google-services.json नाही — FCM push बंद राहील');
+console.log('[prepare] siren.wav ok');
+
+// ⏱ पार्श्वभूमी तपासणी: Background Runner प्लगइनची android-js-engine लायब्ररी (aar) शोधण्यासाठी app/build.gradle मध्ये flatDir ओळ
+{
+  let gg = fs.readFileSync(gradle, 'utf8');
+  const lib = "../../node_modules/@capacitor/background-runner/android/src/main/libs";
+  if (!gg.includes(lib)) {
+    const re = /(dirs\s+'\.\.\/capacitor-cordova-android-plugins\/src\/main\/libs',\s*'libs')/;
+    if (!re.test(gg)) throw new Error('build.gradle मध्ये flatDir dirs ओळ सापडली नाही (Background Runner साठी)');
+    gg = gg.replace(re, "$1, '" + lib + "'");
+    fs.writeFileSync(gradle, gg);
+  }
+  if (!fs.existsSync(path.join(root, 'node_modules', '@capacitor', 'background-runner', 'android', 'src', 'main', 'libs', 'android-js-engine-release.aar'))) throw new Error('background-runner aar सापडली नाही');
+  console.log('[prepare] background-runner gradle ok');
+}
