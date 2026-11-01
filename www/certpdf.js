@@ -123,7 +123,7 @@
   // ── मुख्य: r = ॲप-मागणी नोंद (certHtml, dk, land, kind, certNo, code) ──
   function certPdfMake(r) {
     if (!r || !r.certHtml) return Promise.reject(new Error('दाखला उपलब्ध नाही'));
-    var land = !!r.land;
+    var land = !!r.land || (r.kind !== 'tax' && r.dk === 'n8');           // नमुना ८ नेहमी आडवा (landscape), बाकी दाखले उभे
     var single = r.kind !== 'tax' && !!SINGLE[r.dk];
     var m = single ? 0.03 : (land ? 6 / 25.4 : 8 / 25.4);               // सॉफ्टवेअरचे मार्जिन (इंच): एकल-पानी २ मिमी
     var pw = land ? A4.h : A4.w, ph = land ? A4.w : A4.h;
@@ -206,17 +206,45 @@
     setTimeout(function () { try { document.body.removeChild(a); } catch (e) {} URL.revokeObjectURL(url); }, 60000);
     return 'saved';
   }
+  // APK: PDF फोनवर जतन (Documents/MajhiGramPanchayat मध्ये, Android परवानगी देईल तिथे) + लगेच PDF व्ह्यूअरमध्ये आपोआप उघडतो.
+  // ब्राउझर/PWA: थेट डाउनलोड.
+  function nativeWrite(res) {
+    var C = window.Capacitor, FS = C.registerPlugin('Filesystem');
+    return blobB64(res.blob).then(function (b64) {
+      var keep = FS.writeFile({ path: 'MajhiGramPanchayat/' + res.name, data: b64, directory: 'DOCUMENTS', recursive: true })
+        .then(function (r) { return r.uri; }, function () { return null; });   // Android ने नाकारले तरी ठीक — खाली cache प्रत उघडते
+      return FS.writeFile({ path: res.name, data: b64, directory: 'CACHE' }).then(function (w) {
+        return keep.then(function (saved) { return { uri: w.uri, saved: saved }; });
+      });
+    });
+  }
+  function nativeShare(res, o) {
+    var SH = window.Capacitor.registerPlugin('Share');
+    return SH.share({ title: res.title, url: o.uri, dialogTitle: 'PDF पाठवा (WhatsApp इ.)' }).then(function () { return 'shared'; },
+      function (e) { if (/cancel/i.test(String(e && (e.message || e)))) return 'cancelled'; throw e; });
+  }
   function certPdfDeliver(res) {
     var C = window.Capacitor;
     if (C && C.isNativePlatform && C.isNativePlatform() && C.registerPlugin) {
-      var FS = C.registerPlugin('Filesystem'), SH = C.registerPlugin('Share');
-      return blobB64(res.blob).then(function (b64) {
-        return FS.writeFile({ path: res.name, data: b64, directory: 'CACHE' });
-      }).then(function (w) {
-        return SH.share({ title: res.title, url: w.uri, dialogTitle: 'PDF जतन करा / पाठवा' }).then(function () { return 'shared'; },
-          function (e) { if (/cancel/i.test(String(e && (e.message || e)))) return 'cancelled'; throw e; });
+      return nativeWrite(res).then(function (o) {
+        return C.registerPlugin('FileOpener').open({ filePath: o.uri, contentType: 'application/pdf', openWithDefault: true })
+          .then(function () { return o.saved ? 'saved-opened' : 'opened'; }, function (e) { console.warn('open failed', e); return nativeShare(res, o); }); // व्ह्यूअर नसेल तर शेअर शीट
       }).catch(function (e) { console.warn('native save failed', e); return browserDownload(res); });
     }
+    return Promise.resolve(browserDownload(res));
+  }
+  // 📤 पाठवा: फोनची शेअर शीट (WhatsApp, Telegram, ईमेल इ.) मध्ये PDF
+  function certPdfShare(res) {
+    var C = window.Capacitor;
+    if (C && C.isNativePlatform && C.isNativePlatform() && C.registerPlugin) {
+      return nativeWrite(res).then(function (o) { return nativeShare(res, o); }).catch(function (e) { console.warn('share failed', e); return browserDownload(res); });
+    }
+    try {
+      var f = new File([res.blob], res.name, { type: 'application/pdf' });
+      if (navigator.canShare && navigator.canShare({ files: [f] })) {
+        return navigator.share({ files: [f], title: res.title }).then(function () { return 'shared'; }, function (e) { if (e && e.name === 'AbortError') return 'cancelled'; return browserDownload(res); });
+      }
+    } catch (e) {}
     return Promise.resolve(browserDownload(res));
   }
   function certPdfOpen(res) {                                              // "प्रिंट": PDF नव्या टॅबमध्ये (तिथून प्रिंट)
@@ -229,5 +257,6 @@
   window.certPdfMake = certPdfMake;
   window.certPdfDeliver = certPdfDeliver;
   window.certPdfOpen = certPdfOpen;
+  window.certPdfShare = certPdfShare;
   window.certPdfBuild = pdfBuild;
 })();

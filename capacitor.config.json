@@ -4,15 +4,5 @@
   "webDir": "www",
   "server": {
     "androidScheme": "https"
-  },
-  "plugins": {
-    "BackgroundRunner": {
-      "label": "gp.notice.runner",
-      "src": "runners/gp-bg.js",
-      "event": "gpCheck",
-      "repeat": true,
-      "interval": 15,
-      "autoStart": true
-    }
   }
 }
