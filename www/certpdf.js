@@ -213,7 +213,7 @@
       Promise.resolve(p).then(function (v) { clearTimeout(t); res(v); }, function (e) { clearTimeout(t); rej(e); });
     });
   }
-  function isNative() { var C = window.Capacitor; return !!(C && C.isNativePlatform && C.isNativePlatform() && C.registerPlugin); }
+  function isNative() { var C = window.Capacitor; if (!C || !C.registerPlugin) return false; try { if (C.getPlatform && C.getPlatform() !== 'web') return true; if (C.isNativePlatform && C.isNativePlatform()) return true; } catch (e) {} return false; }
   function msgOf(e) { return String((e && (e.message || e.errorMessage)) || e); }
   // APK: PDF आधी cache मध्ये (परवानगी नको) → लगेच PDF व्ह्यूअरमध्ये उघडतो; Documents/MajhiGramPanchayat मध्ये प्रत मागे जतन (अडकली तरी हरकत नाही).
   function nativeWrite(res) {

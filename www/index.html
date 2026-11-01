@@ -259,7 +259,7 @@ function loadKind(kind,force){
     var n=meta&&meta['c_'+kind];if(!n&&n!==0)return null;
     var ps=[];for(var i=0;i<n;i++)ps.push(fsGet('gpapp_idx/'+kind+'_'+i));
     return Promise.all(ps).then(function(docs){var rows=[];docs.forEach(function(d){try{rows=rows.concat(JSON.parse((d&&d.d)||'[]'));}catch(e){}});
-      return {rows:rows.map(function(r){return {r:r,h:normQ(kind==='n8'?r.slice(0,5).join(' '):r.join(' '))};}),upd:meta.upd};});
+      return {rows:rows.map(function(r){return {r:r,h:normQ(kind==='n8'?r.slice(0,5).join(' '):r.join(' '))};}),upd:meta.upd,fmt:meta.fmt||1};});
   });
   IDXM[kind]={t:Date.now(),p:p};p.catch(function(){delete IDXM[kind];});return p;
 }
@@ -452,7 +452,7 @@ function taxPick(i){
     '<div style="display:flex;justify-content:space-between;font-size:18px;padding:6px 0 0;border-top:2px solid #0D2B5E;font-weight:800"><span>एकूण भरायची रक्कम</span><span>₹'+(tg+tw)+'</span></div></div>':'';
   if(hasSplit)body=sumBox+'<table style="width:100%;margin-top:8px;font-size:14px;border-collapse:collapse">'+dueTbl('🏠 ग्रामनिधी (घरपट्टी)',du.g)+dueTbl('💧 पाणीपट्टी',du.w)+
     '<tr style="font-weight:700;border-top:2px solid #0D2B5E"><td>एकूण भरायची रक्कम</td><td style="text-align:right">₹'+(du.p+du.c)+'</td></tr></table>';
-  else if(du)body='<div class="msg inf" style="margin-top:8px">ग्रामपंचायतीने घरपट्टी / पाणीपट्टी वेगळी पाठवलेली नाही — एकूण रक्कम खाली आहे. कार्यालयाकडून विचारून भागवा.</div>'+'<table style="width:100%;margin-top:8px;font-size:14px;border-collapse:collapse"><tr><td>मागील थकबाकी</td><td style="text-align:right">₹'+du.p+'</td></tr><tr><td>चालू मागणी (शिल्लक)</td><td style="text-align:right">₹'+du.c+'</td></tr><tr style="font-weight:700;border-top:1px solid #ccc"><td>एकूण भरायची रक्कम</td><td style="text-align:right">₹'+(du.p+du.c)+'</td></tr></table>';
+  else if(du)body='<div class="msg inf" style="margin-top:8px">⚠️ ग्रामपंचायतीचा डेटा जुन्या पद्धतीचा आहे — ग्रामनिधी (घरपट्टी) व पाणीपट्टीची थकबाकी वेगळी दिसत नाही, फक्त एकूण दिसते. ग्रामपंचायतीला सॉफ्टवेअरमध्ये "खरा डेटा पाठवा" करायला सांगा. तोपर्यंत खाली दोन्ही रकमा स्वतंत्र टाकून वेगळा भरणा करता येईल.</div>'+'<table style="width:100%;margin-top:8px;font-size:14px;border-collapse:collapse"><tr><td>मागील थकबाकी</td><td style="text-align:right">₹'+du.p+'</td></tr><tr><td>चालू मागणी (शिल्लक)</td><td style="text-align:right">₹'+du.c+'</td></tr><tr style="font-weight:700;border-top:1px solid #ccc"><td>एकूण भरायची रक्कम</td><td style="text-align:right">₹'+(du.p+du.c)+'</td></tr></table>';
   else body='<div class="msg inf">थकबाकी दाखवलेली नाही — ग्रामपंचायतीकडून रक्कम विचारून खाली भरा.</div>';
   if(paidUp)body+='<div class="msg ok">✅ तुमची कोणतीही थकबाकी नाही.</div>';
   else body+='<div class="msg inf" style="margin-top:8px">ग्रामनिधी (घरपट्टी) व पाणीपट्टी यांचे <b>खाते वेगळे</b> आहे — प्रत्येकाची रक्कम व QR वेगळा. ज्याचा भरणा करायचा नाही त्याची रक्कम ० (किंवा रिकामी) ठेवा.</div>'+
@@ -511,14 +511,14 @@ function vMine(){$('m').innerHTML='<div class="card">⏳ आणत आहे…<
   var bd={paid_pending:'<span class="badge b-p">⏳ पडताळणी सुरू</span>',approved:'<span class="badge b-a">✅ मंजूर</span>',rejected:'<span class="badge b-r">❌ नाकारले</span>'};
   var nh=nl.length?'<div class="card"><h2>➕ माझ्या नोंद विनंत्या</h2>'+nl.map(function(r){return '<div style="margin-bottom:6px"><small>'+E(r.code)+' · '+E(dmy(String(r.ts).slice(0,10)))+'</small>'+nondNote(r,false)+'</div>';}).join('')+'</div>':'';
   $('m').innerHTML=nh+(MINE.length?MINE.map(function(r,i){var amt=r.kind==='tax'?r.amount:r.fee,sp=(r.kind==='tax'&&(r.amtGh!=null||r.amtPa!=null))?'<div style="font-size:12.5px;color:#444">🏠 ग्रामनिधी ₹'+E(r.amtGh||0)+' · 💧 पाणीपट्टी ₹'+E(r.amtPa||0)+'</div>':'';return '<div class="card"><div class="row"><b style="flex:1">'+E(tn(r))+(r.code?' · '+E(r.code):'')+'</b>'+(bd[r.status]||'')+'</div>'+(r.rname&&r.kind!=='tax'?'<div style="font-size:13px">'+E(r.rname)+'</div>':'')+sp+'<small>'+E(String(r.ts).slice(0,10).split('-').reverse().join('-'))+' · ₹'+E(amt)+(r.utr?' · UTR '+E(r.utr):'')+'</small>'+
-    (r.status==='rejected'?'<div class="msg err">'+E(r.note||'')+'</div>':'')+(r.status==='approved'&&r.certHtml?'<button class="p" id="pdfb'+i+'" onclick="dlCert('+i+',0)">⬇️ '+(r.kind==='tax'?'पावती':(r.dk==='sg'||!r.dk?'स्वयंघोषणापत्र':'दाखला'))+' PDF डाउनलोड</button><button class="s" style="width:100%;margin-top:8px" onclick="dlCert('+i+',2)">📤 पाठवा (WhatsApp इ.)</button><button class="s" style="width:100%;margin-top:8px" onclick="dlCert('+i+',1)">🖨️ प्रिंट (PDF उघडा)</button>':'')+'</div>';}).join(''):'<div class="card"><div class="msg inf">अजून कोणतीही मागणी नाही.</div></div>')+'<button class="s" style="width:100%" onclick="vMine()">🔄 ताजे करा</button>';},
+    (r.status==='rejected'?'<div class="msg err">'+E(r.note||'')+'</div>':'')+(r.status==='approved'&&r.certHtml?'<button class="p" id="pdfb'+i+'" onclick="dlCert('+i+',0)">⬇️ '+(r.kind==='tax'?'पावती':(r.dk==='sg'||!r.dk?'स्वयंघोषणापत्र':'दाखला'))+' डाउनलोड</button>':'')+'</div>';}).join(''):'<div class="card"><div class="msg inf">अजून कोणतीही मागणी नाही.</div></div>')+'<button class="s" style="width:100%" onclick="vMine()">🔄 ताजे करा</button>';},
   function(e){$('m').innerHTML='<div class="card"><div class="msg err">'+E(errText(e))+'</div></div>';});}
 // ⬇️ PDF डाउनलोड / 🖨️ प्रिंट — सॉफ्टवेअरच्या PDF सारखाच, एकाच A4 पानात (certpdf.js)
 function dlCert(i,mode){var printOnly=(mode===1),share=(mode===2);var r=MINE[i];if(!r||!r.certHtml)return;
-  var btn=$('pdfb'+i),old=btn&&btn.innerHTML,done=false;if(btn){btn.disabled=true;btn.innerHTML='⏳ PDF तयार होत आहे…';}
+  var btn=$('pdfb'+i),old=btn&&btn.innerHTML,done=false;if(btn){btn.disabled=true;btn.innerHTML='⏳ तयार होत आहे…';}
   var back=function(){if(btn){btn.disabled=false;btn.innerHTML=old;}};
   var fin=function(res){if(done)return;done=true;clearTimeout(wd);back();
-    if(res==='saved')alert('✅ PDF डाउनलोड झाला — फोनच्या Downloads मध्ये पहा.');};
+    if(res==='saved')alert('✅ PDF डाउनलोड झाला — फोनच्या Downloads मध्ये पहा.\n(टीप: तुम्ही ॲप APK मध्ये नसून ब्राउझरमध्ये आहात; APK मध्ये PDF आपोआप उघडतो व तिथून WhatsApp वर पाठवता येतो.)');};
   var fail=function(e){if(done)return;done=true;clearTimeout(wd);back();alert('PDF तयार करता आले नाही: '+((e&&e.message)||e));};
   var wd=setTimeout(function(){fail(new Error('वेळ संपला — पुन्हा प्रयत्न करा'));},90000);
   if(!window.certPdfMake){fail(new Error('PDF साधन लोड झाले नाही — ॲप पुन्हा उघडा.'));return;}
@@ -611,15 +611,28 @@ function ntBanner(x){var o=$('ntb');if(o)o.remove();o=document.createElement('di
   setTimeout(function(){if(o.parentNode)o.remove();},15000);}
 // ── 🔊 मराठी आवाजात वाचन (फोनचे TTS; मराठी आवाज नसल्यास हिंदी) ──
 function ntVoice(){try{var v=speechSynthesis.getVoices()||[],f=function(p){return v.filter(function(x){return String(x.lang).toLowerCase().replace('_','-').indexOf(p)===0;})[0];};return f('mr')||f('hi');}catch(e){return null;}}
-function ntSpeakStop(){NT.spOn=false;NT.spTok=(NT.spTok||0)+1;try{window.speechSynthesis&&speechSynthesis.cancel();}catch(e){}try{if(NT.spA){NT.spA.pause();NT.spA.removeAttribute('src');}}catch(e){}}
+function ntTts(){try{var C=window.Capacitor;return (C&&C.getPlatform&&C.getPlatform()!=='web'&&C.registerPlugin)?C.registerPlugin('TextToSpeech'):null;}catch(e){return null;}}
+function ntSpeakStop(){NT.spOn=false;NT.spTok=(NT.spTok||0)+1;try{var T=ntTts();if(T)T.stop();}catch(e){}try{window.speechSynthesis&&speechSynthesis.cancel();}catch(e){}try{if(NT.spA){NT.spA.pause();NT.spA.removeAttribute('src');}}catch(e){}}
 // 🔊 वाचन: फोनमध्ये मराठी आवाज असल्यास तोच; नसल्यास इंटरनेटवरून मराठी आवाज (कोणत्याही फोनवर चालतो); तेही न जमल्यास फोनचा उपलब्ध आवाज.
 function ntSpeakChunks(t){var out=[],parts=String(t).replace(/\s+/g,' ').match(/[^।.!?]+[।.!?]*/g)||[String(t)];
   parts.forEach(function(p){p=p.trim();while(p.length>180){var k=p.lastIndexOf(' ',180);if(k<60)k=180;out.push(p.slice(0,k).trim());p=p.slice(k).trim();}if(p)out.push(p);});return out;}
 function ntSpeakNative(text,v){var s=window.speechSynthesis;if(!s||!window.SpeechSynthesisUtterance)return false;
   var parts=String(text).match(/[^।.!?\n]+[।.!?\n]*/g)||[String(text)];
   parts.forEach(function(p){if(!p.trim())return;var u=new SpeechSynthesisUtterance(p.trim());u.lang=(v&&v.lang)||'mr-IN';if(v)u.voice=v;u.volume=1;u.rate=0.9;u.pitch=1;s.speak(u);});return true;}
+// 📱 APK: फोनचे मूळ (native) Text-to-Speech — इंटरनेट/ब्राउझर आवाज लागत नाही. मराठी → हिंदी → इतर क्रमाने.
+function ntSpeakDevice(text){var T=ntTts();if(!T)return Promise.reject(new Error('no-native'));
+  var q=ntSpeakChunks(text),tok=NT.spTok=(NT.spTok||0)+1;NT.spOn=true;
+  var langs=['mr-IN','hi-IN','en-IN'];
+  function pick(i){if(i>=langs.length)return Promise.reject(new Error('no-lang'));
+    return T.isLanguageSupported({lang:langs[i]}).then(function(r){return r&&r.supported?langs[i]:pick(i+1);},function(){return langs[i];});}
+  return pick(0).then(function(lang){
+    var k=0;function next(){if(tok!==NT.spTok)return Promise.resolve();if(k>=q.length){NT.spOn=false;return Promise.resolve();}
+      return T.speak({text:q[k++],lang:lang,rate:0.9,pitch:1,volume:1,category:'playback',queueStrategy:1}).then(next);}
+    return next();}).then(function(){NT.spOn=false;},function(e){NT.spOn=false;throw e;});}
 function ntSpeak(text){
   if(NT.spOn||(window.speechSynthesis&&speechSynthesis.speaking)){ntSpeakStop();return;}
+  if(ntTts()){ntSpeakDevice(text).then(null,function(e){if(String((e&&e.message)||e).indexOf('cancel')>=0)return;
+    alert('फोनवर आवाज वाचता आला नाही. फोनच्या Settings → Language/Accessibility → Text-to-speech मध्ये "Speech Services by Google" निवडून मराठी (किंवा हिंदी) आवाज डाउनलोड करा.');});return;}
   var v=ntVoice(),mr=v&&String(v.lang).toLowerCase().replace('_','-').indexOf('mr')===0;
   if(mr&&ntSpeakNative(text,v)){NT.spOn=true;return;}
   var q=ntSpeakChunks(text),tok=NT.spTok=(NT.spTok||0)+1,a=NT.spA||(NT.spA=new Audio()),i=0,bad=false;NT.spOn=true;
