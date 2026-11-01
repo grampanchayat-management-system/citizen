@@ -435,7 +435,7 @@ function compNote(r){
     (r.status==='resolved'&&r.reply?'<div class="msg ok">🏛️ ग्रामपंचायतीचे उत्तर: '+E(r.reply)+'</div>':'')+'</div>';
 }
 function compList(){fsMineComp().then(function(l){if(!$('cl'))return;
-  $('cl').innerHTML=l.length?'<div class="card"><h2>माझ्या तक्रारी / सूचना</h2>'+l.map(compNote).join('')+'<button class="s" style="width:100%;margin-top:6px" onclick="compList()">🔄 ताजे करा</button></div>':'';},function(){});}
+  $('cl').innerHTML=l.length?'<div class="card"><h2>माझ्या तक्रारी / सूचना</h2><button class="s" style="width:100%;margin:4px 0 14px" onclick="compList()">🔄 ताजे करा</button>'+l.map(compNote).join('')+'</div>':'';},function(){});}
 // ── 💰 कर शोधा / भरा (खऱ्या नावांवरून थकबाकी) ──
 function vTax(){if(!CFG||CFG.on===false){$('m').innerHTML=off();return;}CUR={shot:'',photo:'',code:'',key:''};
   $('m').innerHTML='<div class="card"><h2>💰 घरपट्टी / कर शोधा व भरा</h2><div class="msg inf" style="margin:0 0 6px">मालकाचे नाव, अ.क्र., मिळकत (घर) क्रमांक किंवा गल्लीच्या नावाने शोधा — थकबाकी दिसेल.</div><label>शोधा</label><input id="t-q" placeholder="उदा. पाटील किंवा 125" oninput="debounce(taxSearch)" autocomplete="off"><div id="t-res" style="margin-top:6px"></div></div><div id="t-sel"></div><div id="payStep"></div>';}
@@ -510,8 +510,8 @@ function vMine(){$('m').innerHTML='<div class="card">⏳ आणत आहे…<
   var T=(CFG&&CFG.types)||[],tn=function(r){if(r.kind==='tax')return '🏠 कर भरणा';if(r.dk&&r.dk!=='sg')return dkName(r.dk);var t=T.filter(function(x){return x.i===r.type;})[0];return t?t.t:'स्वयंघोषणापत्र';};
   var bd={paid_pending:'<span class="badge b-p">⏳ पडताळणी सुरू</span>',approved:'<span class="badge b-a">✅ मंजूर</span>',rejected:'<span class="badge b-r">❌ नाकारले</span>'};
   var nh=nl.length?'<div class="card"><h2>➕ माझ्या नोंद विनंत्या</h2>'+nl.map(function(r){return '<div style="margin-bottom:6px"><small>'+E(r.code)+' · '+E(dmy(String(r.ts).slice(0,10)))+'</small>'+nondNote(r,false)+'</div>';}).join('')+'</div>':'';
-  $('m').innerHTML=nh+(MINE.length?MINE.map(function(r,i){var amt=r.kind==='tax'?r.amount:r.fee,sp=(r.kind==='tax'&&(r.amtGh!=null||r.amtPa!=null))?'<div style="font-size:12.5px;color:#444">🏠 ग्रामनिधी ₹'+E(r.amtGh||0)+' · 💧 पाणीपट्टी ₹'+E(r.amtPa||0)+'</div>':'';return '<div class="card"><div class="row"><b style="flex:1">'+E(tn(r))+(r.code?' · '+E(r.code):'')+'</b>'+(bd[r.status]||'')+'</div>'+(r.rname&&r.kind!=='tax'?'<div style="font-size:13px">'+E(r.rname)+'</div>':'')+sp+'<small>'+E(String(r.ts).slice(0,10).split('-').reverse().join('-'))+' · ₹'+E(amt)+(r.utr?' · UTR '+E(r.utr):'')+'</small>'+
-    (r.status==='rejected'?'<div class="msg err">'+E(r.note||'')+'</div>':'')+(r.status==='approved'&&r.certHtml?'<button class="p" id="pdfb'+i+'" onclick="dlCert('+i+',0)">⬇️ '+(r.kind==='tax'?'पावती':(r.dk==='sg'||!r.dk?'स्वयंघोषणापत्र':'दाखला'))+' PDF डाउनलोड</button><button class="s" style="width:100%;margin-top:6px" id="imgb'+i+'" onclick="dlCert('+i+',3)">🖼️ फोटो (JPEG) डाउनलोड</button>':'')+'</div>';}).join(''):'<div class="card"><div class="msg inf">अजून कोणतीही मागणी नाही.</div></div>')+'<button class="s" style="width:100%" onclick="vMine()">🔄 ताजे करा</button>';},
+  $('m').innerHTML='<button class="s" style="width:100%;margin:4px 0 14px" onclick="vMine()">🔄 ताजे करा</button>'+nh+(MINE.length?MINE.map(function(r,i){var amt=r.kind==='tax'?r.amount:r.fee,sp=(r.kind==='tax'&&(r.amtGh!=null||r.amtPa!=null))?'<div style="font-size:12.5px;color:#444">🏠 ग्रामनिधी ₹'+E(r.amtGh||0)+' · 💧 पाणीपट्टी ₹'+E(r.amtPa||0)+'</div>':'';return '<div class="card"><div class="row"><b style="flex:1">'+E(tn(r))+(r.code?' · '+E(r.code):'')+'</b>'+(bd[r.status]||'')+'</div>'+(r.rname&&r.kind!=='tax'?'<div style="font-size:13px">'+E(r.rname)+'</div>':'')+sp+'<small>'+E(String(r.ts).slice(0,10).split('-').reverse().join('-'))+' · ₹'+E(amt)+(r.utr?' · UTR '+E(r.utr):'')+'</small>'+
+    (r.status==='rejected'?'<div class="msg err">'+E(r.note||'')+'</div>':'')+(r.status==='approved'&&r.certHtml?'<button class="p" id="pdfb'+i+'" onclick="dlCert('+i+',0)">⬇️ '+(r.kind==='tax'?'पावती':(r.dk==='sg'||!r.dk?'स्वयंघोषणापत्र':'दाखला'))+' PDF डाउनलोड</button><button class="s" style="width:100%;margin-top:6px" id="imgb'+i+'" onclick="dlCert('+i+',3)">🖼️ फोटो (JPEG) डाउनलोड</button>':'')+'</div>';}).join(''):'<div class="card"><div class="msg inf">अजून कोणतीही मागणी नाही.</div></div>');},
   function(e){$('m').innerHTML='<div class="card"><div class="msg err">'+E(errText(e))+'</div></div>';});}
 // ⬇️ PDF डाउनलोड / 🖨️ प्रिंट — सॉफ्टवेअरच्या PDF सारखाच, एकाच A4 पानात (certpdf.js)
 function dlCert(i,mode){var printOnly=(mode===1),share=(mode===2),asImg=(mode===3);var r=MINE[i];if(!r||!r.certHtml)return;
@@ -556,7 +556,7 @@ function ntApply(l){
   fresh.filter(function(f){return f.x.k!=='e'&&!(NT.fcm&&f.age>45000);}).forEach(function(f){ntNotify('📢 '+((CFG&&CFG.gp)||'ग्रामपंचायत')+' — सूचना',f.x.x,false);});
   var nn=fresh.filter(function(f){return f.x.k!=='e';}).sort(function(a,b){return a.age-b.age;})[0];
   if(nn&&!em)ntBanner(nn.x);
-  if(em){var late=NT.fcm&&em.age>45000;if(!late)ntNotify('🚨 आणीबाणी सूचना',em.x.x,true);showEm(em.x,em.age<3600000&&!late);} // १ तासापेक्षा जुना आणीबाणी संदेश सायरनशिवाय दाखवतो
+  if(em){var late=NT.fcm&&em.age>45000;if(!late&&document.hidden)ntNotify('🚨 आणीबाणी सूचना',em.x.x,true);showEm(em.x,em.age<3600000&&!late);} // १ तासापेक्षा जुना आणीबाणी संदेश सायरनशिवाय दाखवतो
   if(TAB==='notice'){ntMarkRead();ntRender();}else navDraw();
 }
 function ntUnread(){if(!GP)return 0;var r=LS.g(ntKey('READ'))||[];return (NT.list||[]).filter(function(x){return r.indexOf(x.i)<0;}).length;}
@@ -646,16 +646,30 @@ function ntSpeak(text){
 function ntSpeakIdx(i){var x=NT.list[i];if(x)ntSpeak((x.k==='e'?'आणीबाणी सूचना. ':'सूचना. ')+x.x);}
 // ── 🚨 सायरन (WebAudio) — आवाज फोनच्या मीडिया-व्हॉल्यूमनुसार; ॲप सायरनसाठी सिग्नल पूर्ण पातळीवर ठेवते ──
 function sirenStart(){
-  sirenStop();var C=window.AudioContext||window.webkitAudioContext;if(!C)return;
+  sirenHalt();var C=window.AudioContext||window.webkitAudioContext;if(!C)return;
   try{if(!NT.ac)NT.ac=new C();NT.ac.resume();}catch(e){return;}
   var ac=NT.ac,o=ac.createOscillator(),g=ac.createGain(),t0=ac.currentTime+0.05,n=75; // ७५ फेऱ्या ≈ २ मिनिटे
-  o.type='square';g.gain.value=1;o.connect(g);g.connect(ac.destination);
+  o.type='square';g.gain.value=1;o.connect(g);g.connect(ac.destination);NT.gn=g;
   for(var k=0;k<n;k++){o.frequency.setValueAtTime(650,t0+k*1.6);o.frequency.linearRampToValueAtTime(1500,t0+k*1.6+0.8);o.frequency.linearRampToValueAtTime(650,t0+k*1.6+1.6);}
   o.start(t0);o.stop(t0+n*1.6);NT.osc=o;
   try{var pat=[];for(var j=0;j<60;j++)pat.push(700,250);navigator.vibrate&&navigator.vibrate(pat);}catch(e){}
   setTimeout(function(){var h=$('em-h');if(h&&NT.ac&&NT.ac.state!=='running')h.textContent='🔊 आवाज येण्यासाठी स्क्रीनला एकदा स्पर्श करा';},500);
 }
-function sirenStop(){if(NT.osc){try{NT.osc.disconnect();}catch(e){}try{NT.osc.stop();}catch(e){}}NT.osc=null;try{navigator.vibrate&&navigator.vibrate(0);}catch(e){}}
+// ॲपमधील सायरन (WebAudio) पूर्ण थांबवतो — आवाज शून्य, तार तोडणे, AudioContext suspend, कंपन बंद
+function sirenHalt(){
+  if(NT.osc){try{NT.osc.disconnect();}catch(e){}try{NT.osc.stop();}catch(e){}}NT.osc=null;
+  try{if(NT.gn){NT.gn.gain.value=0;NT.gn.disconnect();}}catch(e){}NT.gn=null;
+  try{if(NT.ac&&NT.ac.state==='running')NT.ac.suspend();}catch(e){}
+  try{navigator.vibrate&&navigator.vibrate(0);}catch(e){}
+}
+// फोनच्या नोटिफिकेशनचा सायरन (channel sound siren.wav ≈ २० सेकंद) ॲपमधून थांबत नव्हता — नोटिफिकेशन काढले की तो आवाज थांबतो
+function ntClearNotifs(){
+  try{var LN=ntLN();if(LN){
+    if(LN.removeAllDeliveredNotifications)LN.removeAllDeliveredNotifications().catch(function(){});
+    if(LN.getPending)LN.getPending().then(function(p){if(p&&p.notifications&&p.notifications.length)LN.cancel({notifications:p.notifications});}).catch(function(){});}}catch(e){}
+  try{var FM=fcmPlugin();if(FM&&FM.removeAllDeliveredNotifications)FM.removeAllDeliveredNotifications().catch(function(){});}catch(e){}
+}
+function sirenStop(){sirenHalt();ntClearNotifs();}
 function showEm(x,ring){
   var o=$('em');if(o)o.remove();NT.cur=x;o=document.createElement('div');o.id='em';
   o.innerHTML='<div style="font-size:64px;line-height:1">🚨</div><h1>आणीबाणी सूचना</h1><div style="font-size:14px;opacity:.9">'+E((CFG&&CFG.gp)||'ग्रामपंचायत')+' · '+E(ntDt(x.ts))+'</div><div class="emt">'+E(x.x)+'</div><div id="em-h" style="font-size:14px;margin-bottom:6px"></div>'+
@@ -667,7 +681,7 @@ function ntSpeakCur(){if(NT.cur){sirenStop();var s=$('em-s');if(s)s.style.displa
 function emClose(){sirenStop();ntSpeakStop();var o=$('em');if(o)o.remove();if(TAB==='notice')ntRender();}
 function openEm(i){var x=NT.list[i];if(x)showEm(x,false);}
 // ── 📢 सूचना टॅब ──
-function vNotice(){ntMarkRead();$('m').innerHTML='<div id="ntp"></div><div id="ntl"></div><button class="s" style="width:100%" onclick="ntPoll()">🔄 ताजे करा</button>';ntRender();ntPoll();}
+function vNotice(){ntMarkRead();$('m').innerHTML='<button class="s" style="width:100%;margin:4px 0 14px" onclick="ntPoll()">🔄 ताजे करा</button><div id="ntp"></div><div id="ntl"></div>';ntRender();ntPoll();}
 function ntRender(){
   var el=$('ntl');if(!el)return;var l=NT.list||[],p=$('ntp');
   if(p)p.innerHTML=(!ntLN()&&'Notification' in window&&Notification.permission==='default')?'<div class="msg inf">🔔 फोनवर नोटिफिकेशन हवे असल्यास <button class="s" onclick="ntAskPerm()">नोटिफिकेशन चालू करा</button></div>':'';
