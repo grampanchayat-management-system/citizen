@@ -23,10 +23,16 @@ jobs:
           java-version: 17
 
       - name: npm install
-        run: npm install --no-audit --no-fund
+        run: npm install --no-audit --no-fund --legacy-peer-deps
 
       - name: Android प्रोजेक्ट बनवा
         run: npx cap add android
+
+      - name: Firebase (FCM push) कॉन्फिग
+        env:
+          GSJ: ${{ secrets.GOOGLE_SERVICES_JSON }}
+        run: |
+          if [ -n "$GSJ" ]; then printf '%s' "$GSJ" > android/app/google-services.json; echo "FCM push चालू"; else echo "::warning::GOOGLE_SERVICES_JSON secret नाही — push बंद राहील (ॲप उघडे असताना सूचना चालतील)"; fi
 
       - name: आयकॉन / version टाका
         run: node scripts/prepare-android.js
