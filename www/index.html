@@ -181,9 +181,17 @@ function dkList(){ // ग्रामपंचायतीने प्रका
   var d=(CFG&&CFG.dtypes)||null;
   if(d&&d.length)return d.map(function(x){return {k:x.k,t:x.t||dkName(x.k),fee:+x.fee};});
   return DKT.map(function(x){return {k:x[0],t:x[1],fee:20};});}
+// 👥 ग्रामपंचायतीला "ॲप वापरकर्ते" यादी दिसण्यासाठी — नाव + मोबाईल स्वतःच्या नोंदीत (gpapp_users/uid) जतन करतो (फक्त हेच दोन + वेळ)
+function regUser(){
+  if(!SES||!SES.uid||!GP)return;var k='GPAPP_REG_'+SES.uid,first=!LS.g(k),now=new Date().toISOString();
+  var o={uid:SES.uid,mob:String(SES.mob||''),name:String(SES.name||''),last:now};if(first)o.joined=now;
+  var f={},q=[];Object.keys(o).forEach(function(x){f[x]=fsEnc(o[x]);q.push('updateMask.fieldPaths='+encodeURIComponent(x));});
+  token().then(function(t){return http('PATCH',fsBase()+'/gpapp_users/'+encodeURIComponent(SES.uid)+'?'+q.join('&'),{fields:f},{Authorization:'Bearer '+t});}).then(function(){LS.s(k,1);},function(){});
+}
 function enter(){
   $('chg').classList.add('hidden');$('lo').classList.remove('hidden');$('nav').classList.remove('hidden');$('ttl').textContent='🏛️ ग्रामपंचायत '+GP.v;
   $('m').innerHTML='<div class="card">⏳ माहिती आणत आहे…</div>';
+  try{regUser();}catch(e){}
   fsGet('gpapp/cfg').then(function(c){CFG=c;LS.s('GPAPP_CFG_'+GP.p,c);},function(){CFG=LS.g('GPAPP_CFG_'+GP.p);}).then(function(){
     if(CFG&&CFG.gp)$('ttl').textContent='🏛️ '+CFG.gp+(CFG.tal?' · '+CFG.tal:'');tab('home');ntStart();},function(){});
 }
@@ -212,7 +220,7 @@ function wxGet(){var ck='GPAPP_WX_'+(GP&&GP.p),c=LS.g(ck),box=$('wx');if(!box)re
 function homeGrid(){var un=0;try{un=ntUnread();}catch(e){}
   var T=[['dakhla','📄','दाखला मागवा','#e3f0ff'],['sg','📝','स्वयंघोषणा-पत्र','#fff3e0'],['tax','💰','कर शोधा / भरा','#e6f4ea'],['nond','➕','नोंद करून द्या','#f3e5f5'],['comp','📣','तक्रार / सूचना','#fde8e8'],['mine','📋','माझ्या मागण्या / डाउनलोड','#e0f7fa'],['notice','📢','नोटीस बोर्ड','#fff8e1'],['web','🌐','वेबसाईट','#e8eaf6']];
   return '<div class="grid3">'+T.map(function(x){return '<button class="tile" onclick="tab(\''+x[0]+'\')"><span class="ic" style="background:'+x[3]+'">'+x[1]+'</span><span class="lb">'+x[2]+'</span>'+(x[0]==='notice'&&un?'<i class="bdg">'+un+'</i>':'')+'</button>';}).join('')+'</div>';}
-function saveMyName(){var n=($('hnn').value||'').trim();if(!n)return;SES.name=n;LS.s('GPAPP_NAME_'+SES.mob,n);LS.s(sesKey(),SES);
+function saveMyName(){var n=($('hnn').value||'').trim();if(!n)return;SES.name=n;LS.s('GPAPP_NAME_'+SES.mob,n);LS.s(sesKey(),SES);try{regUser();}catch(e){}
   try{http('POST',authUrl('update'),{idToken:SES.idToken,displayName:n,returnSecureToken:false});}catch(e){}vHome();}
 function vHome(){$('m').innerHTML='<div id="hn"></div><div id="hc"></div><div class="hello"><div class="hi">नमस्कार 🙏</div><div class="nm">'+(SES.name?E(SES.name):'नागरिक')+'</div><div class="mb">📱 '+E(SES.mob)+'</div></div>'+(SES.name?'':'<div class="card"><label style="margin-top:0">तुमचे नाव भरा (मुख्य पानावर दिसेल)</label><input id="hnn" autocomplete="name"><button class="p" onclick="saveMyName()">जतन करा</button></div>')+homeGrid()+'<div class="wx" id="wx">⏳ हवामान…</div>'+off();
   try{wxGet();}catch(e){}
@@ -302,12 +310,16 @@ function dueOf(r){if(!(r.length>=7&&r[5]!=null&&r[6]!=null))return null;var o={p
 var MYT={t:0,l:[],upd:''};
 function refreshMyTax(upd,force){MYT.upd=upd||'';if(!force&&Date.now()-MYT.t<10000)return Promise.resolve();
   return fsMine().then(function(l){MYT.l=l||[];MYT.t=Date.now();},function(){});}
+// 🎁 कर सवलत योजना — ग्रामपंचायतीच्या वेबसाईटवरील सवलत चालू असेल (आजची तारीख योजनेच्या कालावधीत) तरच दिसते; बंद असल्यास नेहमीप्रमाणे
+function discNow(){var c=(CFG&&CFG.disc)||null;if(!c||!c.on)return null;var t=new Date().toISOString().slice(0,10);
+  if(c.from&&t<c.from)return null;if(c.to&&t>c.to)return null;var pm=+c.pm||0,pc=+c.pc||0;return (pm>0||pc>0)?{pm:pm,pc:pc,to:c.to||'',note:c.note||''}:null;}
+function discPay(x,d){return Math.round((x.p||0)*(1-d.pm/100)+(x.c||0)*(1-d.pc/100));}
 function myTaxAdj(ano){var a={g:0,w:0,t:0,pend:0,appr:0};
   (MYT.l||[]).forEach(function(q){if(q.kind!=='tax'||String(q.pno)!==String(ano))return;
     var pend=q.status==='paid_pending',appr=q.status==='approved'&&MYT.upd&&String(q.decidedAt||'')>String(MYT.upd);
     if(!pend&&!appr)return;
     var g=Math.round(+q.amtGh||0),w=Math.round(+q.amtPa||0),sp=(q.amtGh!=null||q.amtPa!=null);
-    if(sp){a.g+=g;a.w+=w;}else a.t+=Math.round(+q.amount||0);
+    if(sp){a.g+=g+Math.round(+q.sutGh||0);a.w+=w+Math.round(+q.sutPa||0);}else a.t+=Math.round(+q.amount||0); // सवलतीसह भरलेल्या भरण्यात सवलतही फेडलेली धरतो
     if(pend)a.pend+=sp?g+w:Math.round(+q.amount||0);else a.appr+=sp?g+w:Math.round(+q.amount||0);});
   return a;}
 function cutDue(x,m){var u=Math.min(m,x.p);x.p-=u;m-=u;var v=Math.min(m,x.c);x.c-=v;return m-v;}
@@ -489,22 +501,24 @@ function taxPick(i){
 function taxPick2(r){
   if(CUR.code)return;var v=rowView('n8',r),du=dueOf(r),i=0;
   CUR.pno=String(r[0]);CUR.owner=r[1];CUR.tot=du?du.p+du.c:null;CUR.du=du;CUR.split=true;$('t-res').innerHTML='';
-  var hasSplit=!!(du&&du.g),tg=hasSplit?du.g.p+du.g.c:0,tw=hasSplit&&du.w?du.w.p+du.w.c:0,paidUp=!!(du&&du.p+du.c<=0),body='';
+  var hasSplit=!!(du&&du.g),tg=hasSplit?du.g.p+du.g.c:0,tw=hasSplit&&du.w?du.w.p+du.w.c:0,paidUp=!!(du&&du.p+du.c<=0),body='',dc=hasSplit?discNow():null,pg=tg,pw=tw;
+  if(dc){pg=discPay(du.g,dc);pw=du.w?discPay(du.w,dc):0;}CUR.dc=dc;CUR.pg=pg;CUR.pw=pw;CUR.fg=tg;CUR.fw=tw;
+  var dcBox=(dc&&(tg+tw)>pg+pw)?'<div style="margin-top:8px;border:2px dashed #2e7d32;border-radius:10px;padding:10px;background:#F1FFF1"><div style="font-weight:800;color:#c62828">🎉 '+E(dc.note||'सध्या कर सवलत योजना लागू आहे!')+'</div><div style="font-size:13px;margin-top:2px">मागील थकबाकीवर '+dc.pm+'% सवलत'+(dc.pc?' + चालू रकमेवर '+dc.pc+'% सवलत':'')+'</div><div style="font-size:22px;font-weight:900;color:#1b7a1b;margin-top:4px">तुमची बचत ₹'+((tg+tw)-(pg+pw))+'</div><div style="font-size:12px;color:#8a6d3b;text-decoration:line-through">सवलतीशिवाय रक्कम ₹'+(tg+tw)+'</div>'+(dc.to?'<div style="font-size:12.5px;margin-top:2px">⏳ दि. '+dmy(dc.to)+' पर्यंत</div>':'')+'<div style="font-size:12.5px;margin-top:4px">खालील सवलतीसह रक्कम तशीच भरल्यास सवलत मिळेल व बाकी ०. रक्कम बदलल्यास सवलत लागू होत नाही.</div></div>':'';
   // ग्रामनिधी (घरपट्टी) व पाणीपट्टी — नेहमी वेगळी रक्कम, वेगळा QR, वेगळा UPI/टीप-क्रमांक
   var sumBox=hasSplit?'<div style="margin-top:8px;border:2px solid #0D2B5E;border-radius:10px;padding:10px;background:#F3F7FF"><div style="font-weight:700;color:#0D2B5E;margin-bottom:6px">कोणत्या खात्यात किती रक्कम भरायची</div>'+
-    '<div style="display:flex;justify-content:space-between;font-size:17px;padding:4px 0"><span>🏠 ग्रामनिधी (घरपट्टी) खाते</span><b>₹'+tg+'</b></div>'+
-    '<div style="display:flex;justify-content:space-between;font-size:17px;padding:4px 0;border-top:1px dashed #9db"><span>💧 पाणीपट्टी खाते</span><b>₹'+tw+'</b></div>'+
-    '<div style="display:flex;justify-content:space-between;font-size:18px;padding:6px 0 0;border-top:2px solid #0D2B5E;font-weight:800"><span>एकूण भरायची रक्कम</span><span>₹'+(tg+tw)+'</span></div></div>':'';
+    '<div style="display:flex;justify-content:space-between;font-size:17px;padding:4px 0"><span>🏠 ग्रामनिधी (घरपट्टी) खाते</span><b>₹'+pg+'</b></div>'+
+    '<div style="display:flex;justify-content:space-between;font-size:17px;padding:4px 0;border-top:1px dashed #9db"><span>💧 पाणीपट्टी खाते</span><b>₹'+pw+'</b></div>'+
+    '<div style="display:flex;justify-content:space-between;font-size:18px;padding:6px 0 0;border-top:2px solid #0D2B5E;font-weight:800"><span>एकूण भरायची रक्कम</span><span>₹'+(pg+pw)+'</span></div></div>':'';
   if(hasSplit)body=sumBox+'<table style="width:100%;margin-top:8px;font-size:14px;border-collapse:collapse">'+dueTbl('🏠 ग्रामनिधी (घरपट्टी)',du.g)+dueTbl('💧 पाणीपट्टी',du.w)+
-    '<tr style="font-weight:700;border-top:2px solid #0D2B5E"><td>एकूण भरायची रक्कम</td><td style="text-align:right">₹'+(du.p+du.c)+'</td></tr></table>';
+    '<tr style="font-weight:700;border-top:2px solid #0D2B5E"><td>एकूण थकबाकी (सवलतीशिवाय)</td><td style="text-align:right">₹'+(du.p+du.c)+'</td></tr></table>'+dcBox;
   else if(du)body='<div class="msg inf" style="margin-top:8px">⚠️ ग्रामपंचायतीचा डेटा जुन्या पद्धतीचा आहे — ग्रामनिधी (घरपट्टी) व पाणीपट्टीची थकबाकी वेगळी दिसत नाही, फक्त एकूण दिसते. ग्रामपंचायतीला सॉफ्टवेअरमध्ये "खरा डेटा पाठवा" करायला सांगा. तोपर्यंत खाली दोन्ही रकमा स्वतंत्र टाकून वेगळा भरणा करता येईल.</div>'+'<table style="width:100%;margin-top:8px;font-size:14px;border-collapse:collapse"><tr><td>मागील थकबाकी</td><td style="text-align:right">₹'+du.p+'</td></tr><tr><td>चालू मागणी (शिल्लक)</td><td style="text-align:right">₹'+du.c+'</td></tr><tr style="font-weight:700;border-top:1px solid #ccc"><td>एकूण भरायची रक्कम</td><td style="text-align:right">₹'+(du.p+du.c)+'</td></tr></table>';
   else body='<div class="msg inf">थकबाकी दाखवलेली नाही — ग्रामपंचायतीकडून रक्कम विचारून खाली भरा.</div>';
   if(du&&du.pend>0)body='<div class="msg inf" style="margin-top:8px">⏳ तुमचा ₹'+du.pend+' चा भरणा ग्रामपंचायतीकडे पडताळणीसाठी प्रलंबित आहे — तो वजा करून <b>उरलेली</b> रक्कम दाखवली आहे.</div>'+body;
   if(du&&du.appr>0)body='<div class="msg ok" style="margin-top:8px">✅ तुमचा ₹'+du.appr+' चा भरणा मंजूर झाला आहे — तो वजा करून उरलेली रक्कम दाखवली आहे.</div>'+body;
   if(paidUp)body+='<div class="msg ok">✅ तुमची कोणतीही थकबाकी नाही.</div>';
   else body+='<div class="msg inf" style="margin-top:8px">ग्रामनिधी (घरपट्टी) व पाणीपट्टी यांचे <b>खाते वेगळे</b> आहे — प्रत्येकाची रक्कम व QR वेगळा. ज्याचा भरणा करायचा नाही त्याची रक्कम ० (किंवा रिकामी) ठेवा.</div>'+
-    ((!hasSplit||tg>0)?'<label>🏠 ग्रामनिधी (घरपट्टी) भरणार असलेली रक्कम (₹)</label><input id="t-ag" inputmode="numeric" value="'+(tg>0?tg:'')+'">':'')+
-    ((!hasSplit||tw>0)?'<label>💧 पाणीपट्टी भरणार असलेली रक्कम (₹)</label><input id="t-ap" inputmode="numeric" value="'+(tw>0?tw:'')+'">':'')+
+    ((!hasSplit||tg>0)?'<label>🏠 ग्रामनिधी (घरपट्टी) भरणार असलेली रक्कम (₹)</label><input id="t-ag" inputmode="numeric" value="'+(pg>0?pg:'')+'">':'')+
+    ((!hasSplit||tw>0)?'<label>💧 पाणीपट्टी भरणार असलेली रक्कम (₹)</label><input id="t-ap" inputmode="numeric" value="'+(pw>0?pw:'')+'">':'')+
     '<label>भरणाऱ्याचे नाव</label><input id="t-n" value="'+E(SES.name)+'"><div id="f-m0"></div><button class="p" id="f-b0" onclick="taxNext()">पुढे — भरणा करा ➜</button>';
   $('t-sel').innerHTML='<div class="card"><h2>निवडलेली मालमत्ता</h2><div class="msg ok" style="margin:0"><b>'+E(v.t)+'</b><div style="font-size:13px">'+E(v.s)+'</div></div>'+body+
    '<button class="s" style="width:100%;margin-top:8px" onclick="vTax()">दुसरी मालमत्ता शोधा</button></div>';
@@ -519,6 +533,8 @@ function taxNext(){var c=CFG||{},du=CUR.du,g=0,w=0,a=0;
       if(w>du.w.p+du.w.c)return msg('f-m0','पाणीपट्टी रक्कम शिल्लक (₹'+(du.w.p+du.w.c)+') पेक्षा जास्त नको','err');
     }else if(CUR.tot!=null&&g+w>CUR.tot)return msg('f-m0','एकूण रक्कम थकबाकी (₹'+CUR.tot+') पेक्षा जास्त नको','err');
     a=g+w;
+    CUR.sg=0;CUR.sw=0;CUR.dpM=0;CUR.dpC=0; // सवलतीसह रक्कम तशीच भरली तरच सवलत लागू
+    if(CUR.dc&&du&&du.g){if(g>0&&g===CUR.pg&&CUR.pg<CUR.fg)CUR.sg=CUR.fg-g;if(w>0&&w===CUR.pw&&CUR.pw<CUR.fw)CUR.sw=CUR.fw-w;if(CUR.sg||CUR.sw){CUR.dpM=CUR.dc.pm;CUR.dpC=CUR.dc.pc;}}
   }else{
     a=Math.round(+($('t-a').value||0));
     if(!(a>0))return msg('f-m0','रक्कम भरा','err');
@@ -541,7 +557,7 @@ function taxSend(){
     var ug=$('f-utr')?($('f-utr').value||'').trim():'',up=$('f-utrPa')?($('f-utrPa').value||'').trim():'';
     if(CUR.aG>0&&!ug&&!CUR.shot)return msg('f-m','ग्रामनिधी (घरपट्टी) साठी UTR क्रमांक किंवा स्क्रीनशॉट द्या','err');
     if(CUR.aP>0&&!up&&!CUR.shotPa)return msg('f-m','पाणीपट्टी साठी UTR क्रमांक किंवा स्क्रीनशॉट द्या','err');
-    d.amtGh=CUR.aG;d.amtPa=CUR.aP;d.utrGh=ug;d.utrPa=up;d.utr=[ug,up].filter(Boolean).join(' / ');d.shot=CUR.shot||'';d.shotPa=CUR.shotPa||'';
+    d.amtGh=CUR.aG;d.amtPa=CUR.aP;d.utrGh=ug;d.utrPa=up;if(CUR.sg||CUR.sw){d.sutGh=CUR.sg||0;d.sutPa=CUR.sw||0;d.dpM=CUR.dpM;d.dpC=CUR.dpC;}d.utr=[ug,up].filter(Boolean).join(' / ');d.shot=CUR.shot||'';d.shotPa=CUR.shotPa||'';
   }else{
     var utr=($('f-utr').value||'').trim();
     if(!utr&&!CUR.shot)return msg('f-m','UTR क्रमांक किंवा स्क्रीनशॉट द्या','err');
