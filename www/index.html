@@ -35,6 +35,7 @@ nav{display:grid;grid-template-columns:repeat(9,1fr);overflow:visible;padding-bo
 #ntb button{background:#fff;color:#0D2B5E;border:0;border-radius:7px;padding:7px 12px;font:inherit;margin:8px 8px 0 0}
 .hidden{display:none}small{color:#666}
 .hello{background:linear-gradient(135deg,#0D2B5E,#1c4a9a);color:#fff;border-radius:14px;padding:16px;margin-bottom:12px}.hello .hi{font-size:14px;opacity:.85}.hello .nm{font-size:23px;font-weight:800;line-height:1.3;word-break:break-word}.hello .mb{font-size:13px;opacity:.85;margin-top:4px}
+.wxc{background:linear-gradient(135deg,#e8f3ff,#fff);border-radius:14px;box-shadow:0 1px 6px #0002;padding:10px 12px;margin-bottom:12px;color:#223}.wxc .wxh{display:flex;justify-content:space-between;gap:6px;font-size:12.5px;font-weight:800;color:#0D2B5E;flex-wrap:wrap}.wxc .wxu{font-weight:600;color:#777;font-size:11px}.wxc .wxm{display:flex;align-items:center;gap:14px;margin:6px 0}.wxc .wxbig{font-size:30px;font-weight:800;color:#0b5ed7;white-space:nowrap}.wxc .wxd{font-size:12.5px;line-height:1.5}.wxc .wxg{display:grid;grid-template-columns:1fr 1fr;gap:4px 12px}.wxc .wxi{display:flex;justify-content:space-between;gap:6px;font-size:12px;border-bottom:1px dashed #cfd8e6;padding:2px 0}.wxc .wxl{color:#555}.wxc .wxf-t{font-size:11.5px;font-weight:800;color:#0D2B5E;margin:8px 0 3px}.wxc .wxf{display:flex;gap:6px;overflow-x:auto}.wxc .wxs{flex:1 0 auto;min-width:56px;background:#fff;border-radius:10px;padding:4px 6px;text-align:center;font-size:12px;box-shadow:0 1px 2px #0001}.wxc .wxst{font-size:10.5px;color:#666}.wxc .wxsp{font-size:10.5px;color:#ef6c00}
 .wx{background:#fff;border-radius:12px;box-shadow:0 1px 4px #0002;padding:9px 10px;margin-bottom:12px;font-size:12.5px;font-weight:700;display:flex;align-items:center;justify-content:center;gap:6px;white-space:nowrap;overflow-x:auto;color:#333}.wx b{font-weight:800}.wx .sep{color:#bbb;font-weight:400}
 .grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:12px}
 .tile{background:#fff;border:0;border-radius:14px;box-shadow:0 1px 4px #0002;padding:14px 4px 10px;display:flex;flex-direction:column;align-items:center;gap:8px;font:inherit;color:#222;min-width:0;position:relative}
@@ -82,7 +83,7 @@ function token(){
 }
 function sesKey(){return 'GPAPP_SES_'+GP.p;}
 function fsGet(path){return token().then(function(t){return http('GET',fsBase()+'/'+path,null,{Authorization:'Bearer '+t});}).then(docOut,function(e){if(e.http===404)return null;throw e;});}
-function fsCreate(col,id,obj){var f={};Object.keys(obj).forEach(function(k){if(obj[k]!==undefined)f[k]=fsEnc(obj[k]);});
+function fsCreate(col,id,obj){if(SES&&SES.wa&&col!=='gpapp_seq'&&obj.wa===undefined)obj.wa=SES.wa;var f={};Object.keys(obj).forEach(function(k){if(obj[k]!==undefined)f[k]=fsEnc(obj[k]);});
   return token().then(function(t){return http('POST',fsBase()+'/'+col+'?documentId='+encodeURIComponent(id),{fields:f},{Authorization:'Bearer '+t});});}
 function fsMine(){return token().then(function(t){return http('POST',fsBase()+':runQuery',{structuredQuery:{from:[{collectionId:'gpapp_req'}],where:{fieldFilter:{field:{fieldPath:'uid'},op:'EQUAL',value:{stringValue:SES.uid}}}}},{Authorization:'Bearer '+t});}).then(function(r){
   return (r||[]).filter(function(x){return x.document;}).map(function(x){return docOut(x.document);});});}
@@ -161,15 +162,18 @@ var AUTHMODE='in';
 function authScreen(){
   $('nav').classList.add('hidden');$('lo').classList.add('hidden');$('chg').classList.remove('hidden');$('ttl').textContent='🏛️ ग्रामपंचायत '+GP.v;
   $('m').innerHTML='<div class="card"><div class="row" style="margin-bottom:6px"><button class="s" style="flex:1;'+(AUTHMODE==='in'?'background:#0D2B5E;color:#fff':'')+'" onclick="AUTHMODE=\'in\';authScreen()">लॉगिन</button><button class="s" style="flex:1;'+(AUTHMODE==='up'?'background:#0D2B5E;color:#fff':'')+'" onclick="AUTHMODE=\'up\';authScreen()">नवीन नोंदणी</button></div>'+
-   (AUTHMODE==='up'?'<label>तुमचे पूर्ण नाव</label><input id="an" autocomplete="name">':'')+'<label>मोबाईल क्रमांक (१०अंकी)</label><input id="am" inputmode="numeric" maxlength="10" autocomplete="tel"><label>पासवर्ड (किमान ६ अक्षरे)</label><input id="ap" type="password" autocomplete="'+(AUTHMODE==='up'?'new-password':'current-password')+'"><div id="aM"></div><button class="p" id="ab" onclick="authGo()">'+(AUTHMODE==='up'?'नोंदणी करा':'लॉगिन करा')+'</button><small style="display:block;margin-top:8px">पासवर्ड विसरल्यास ग्रामपंचायत कार्यालयाशी संपर्क करा.</small></div>';}
+   (AUTHMODE==='up'?'<label>तुमचे पूर्ण नाव</label><input id="an" autocomplete="name">':'')+'<label>मोबाईल क्रमांक (१०अंकी)</label><input id="am" inputmode="numeric" maxlength="10" autocomplete="tel">'+(AUTHMODE==='up'?'<label>WhatsApp नंबर * (दाखला / पावती याच नंबरवर पाठवली जाईल)</label><input id="aw" inputmode="numeric" maxlength="10" placeholder="१० अंकी WhatsApp नंबर"><label style="display:flex;gap:8px;align-items:center;font-weight:600;margin-top:6px"><input type="checkbox" id="aws" style="width:auto;margin:0" onchange="var a=$(\'am\').value.replace(/\\D/g,\'\');if(this.checked){$(\'aw\').value=a;}">वरील मोबाईल नंबरच WhatsApp आहे</label>':'')+'<label>पासवर्ड (किमान ६ अक्षरे)</label><input id="ap" type="password" autocomplete="'+(AUTHMODE==='up'?'new-password':'current-password')+'"><div id="aM"></div><button class="p" id="ab" onclick="authGo()">'+(AUTHMODE==='up'?'नोंदणी करा':'लॉगिन करा')+'</button><small style="display:block;margin-top:8px">पासवर्ड विसरल्यास ग्रामपंचायत कार्यालयाशी संपर्क करा.</small></div>';}
 function authGo(){
   var m=($('am').value||'').replace(/\D/g,''),p=$('ap').value||'',n=AUTHMODE==='up'?($('an').value||'').trim():'';
   if(!/^[6-9]\d{9}$/.test(m))return msg('aM','१० अंकी वैध मोबाईल क्रमांक भरा','err');
   if(p.length<6)return msg('aM','पासवर्ड किमान ६ अक्षरांचा हवा','err');
   if(AUTHMODE==='up'&&!n)return msg('aM','नाव भरा','err');
+  var wa=AUTHMODE==='up'?(($('aw')||{}).value||'').replace(/\D/g,''):'';
+  if(AUTHMODE==='up'&&!/^[6-9]\d{9}$/.test(wa))return msg('aM','१० अंकी वैध WhatsApp नंबर भरा — दाखला/पावती याच नंबरवर येईल','err');
   $('ab').disabled=true;msg('aM','⏳ कृपया थांबा…');
   http('POST',authUrl(AUTHMODE==='up'?'signUp':'signInWithPassword'),{email:'m'+m+'@citizen.gp',password:p,returnSecureToken:true}).then(function(r){
-    SES={uid:r.localId,idToken:r.idToken,refreshToken:r.refreshToken,exp:Date.now()+(+r.expiresIn||3600)*1000,mob:m,name:n||r.displayName||(LS.g('GPAPP_NAME_'+m)||'')};
+    SES={uid:r.localId,idToken:r.idToken,refreshToken:r.refreshToken,exp:Date.now()+(+r.expiresIn||3600)*1000,mob:m,name:n||r.displayName||(LS.g('GPAPP_NAME_'+m)||''),wa:wa||LS.g('GPAPP_WA_'+m)||''};
+    if(wa)LS.s('GPAPP_WA_'+m,wa);
     if(SES.name)LS.s('GPAPP_NAME_'+m,SES.name);LS.s(sesKey(),SES);
     if(n){try{http('POST',authUrl('update'),{idToken:r.idToken,displayName:n,returnSecureToken:false}).then(null,function(){});}catch(e){}}enter();
   },function(e){$('ab').disabled=false;msg('aM',errText(e),'err');});
@@ -184,7 +188,7 @@ function dkList(){ // ग्रामपंचायतीने प्रका
 // 👥 ग्रामपंचायतीला "ॲप वापरकर्ते" यादी दिसण्यासाठी — नाव + मोबाईल स्वतःच्या नोंदीत (gpapp_users/uid) जतन करतो (फक्त हेच दोन + वेळ)
 function regUser(){
   if(!SES||!SES.uid||!GP)return;var k='GPAPP_REG_'+SES.uid,first=!LS.g(k),now=new Date().toISOString();
-  var o={uid:SES.uid,mob:String(SES.mob||''),name:String(SES.name||''),last:now};if(first)o.joined=now;
+  var o={uid:SES.uid,mob:String(SES.mob||''),name:String(SES.name||''),wa:String(SES.wa||''),last:now};if(first)o.joined=now;
   var f={},q=[];Object.keys(o).forEach(function(x){f[x]=fsEnc(o[x]);q.push('updateMask.fieldPaths='+encodeURIComponent(x));});
   token().then(function(t){return http('PATCH',fsBase()+'/gpapp_users/'+encodeURIComponent(SES.uid)+'?'+q.join('&'),{fields:f},{Authorization:'Bearer '+t});}).then(function(){LS.s(k,1);},function(){});
 }
@@ -203,10 +207,21 @@ function off(){return !CFG||CFG.on===false?'<div class="card"><div class="msg er
 // ── 🌦️ हवामान (home वर menu च्या खाली एका ओळीत) — OpenWeatherMap (गावाचे lat/lon CFG मध्ये असतील तर तेच, नाहीतर तालुका+जिल्ह्यावरून शोध); १ तास cache; नेट नसेल तर शेवटचे दिसते ──
 var WX_KEY='b49514c717e32754db5ef2f43c71e93c';
 function wxMr(m){return {Clear:'स्वच्छ आकाश',Clouds:'ढगाळ',Rain:'पाऊस',Drizzle:'रिमझिम',Thunderstorm:'वादळी पाऊस',Snow:'हिमवृष्टी',Mist:'धुके',Haze:'धुरकट',Fog:'दाट धुके',Smoke:'धूर',Dust:'धूळ',Sand:'वाळूची धूळ',Ash:'राख',Squall:'जोरदार वारे',Tornado:'चक्रीवादळ'}[m]||'हवामान';}
-function wxLine(w){return '<span>🌡️ <b style="color:#0b5ed7">'+w.t+'°C</b></span><span class="sep">|</span><span style="color:#1e7e34">☁️ '+E(w.s)+'</span><span class="sep">|</span><span style="color:#ef6c00">🌧️ '+w.r+'%</span><span class="sep">|</span><span style="color:#6f42c1">💧 '+w.h+'%</span><span class="sep">|</span><span>📍 '+E(w.p)+'</span>';}
+function wxIc(m,id){if(id>=200&&id<300)return '⛈️';if(id>=300&&id<400)return '🌦️';if(id>=500&&id<600)return '🌧️';if(id>=600&&id<700)return '❄️';if(id>=700&&id<800)return '🌫️';if(id===800)return '☀️';if(id===801||id===802)return '⛅';return '☁️';}
+function wxTm(ts){try{return new Date(ts*1000).toLocaleTimeString('en-IN',{hour:'numeric',minute:'2-digit',hour12:true,timeZone:'Asia/Kolkata'});}catch(e){return '';}}
+function wxLine(w){
+  var it=function(ic,lb,v,c){return '<div class="wxi"><span class="wxl">'+ic+' '+lb+'</span><b style="color:'+c+'">'+v+'</b></div>';};
+  var h='<div class="wxh"><span>📍 '+E(w.p||'')+' — आजचे हवामान</span>'+(w.u?'<span class="wxu">अपडेट: '+E(wxTm(w.u))+'</span>':'')+'</div>'+
+    '<div class="wxm"><div class="wxbig">'+(w.i||'🌡️')+' '+w.t+'°C</div><div class="wxd"><b>'+E(w.s)+'</b>'+(w.fl!=null?'<br>जाणवणारे तापमान '+w.fl+'°C':'')+(w.tmax!=null?'<br>किमान '+w.tmin+'° / कमाल '+w.tmax+'°':'')+'</div></div>'+
+    '<div class="wxg">'+it('🌧️','पावसाची शक्यता',w.r+'%','#ef6c00')+it('💧','आर्द्रता',w.h+'%','#6f42c1')+
+    (w.wd!=null?it('💨','वारा',w.wd+' किमी/तास','#0b5ed7'):'')+(w.cl!=null?it('☁️','ढग',w.cl+'%','#546e7a'):'')+
+    (w.pr!=null?it('🧭','दाब',w.pr+' hPa','#795548'):'')+(w.vi!=null?it('👁️','दृश्यमानता',w.vi+' किमी','#00796b'):'')+
+    (w.sr?it('🌅','सूर्योदय',E(wxTm(w.sr)),'#e65100'):'')+(w.ss?it('🌇','सूर्यास्त',E(wxTm(w.ss)),'#c2185b'):'')+'</div>';
+  if(w.f&&w.f.length)h+='<div class="wxf-t">पुढील काही तास</div><div class="wxf">'+w.f.map(function(x){return '<div class="wxs"><div class="wxst">'+E(wxTm(x.d))+'</div><div>'+(x.i||'')+'</div><b>'+x.t+'°</b><div class="wxsp">🌧️ '+x.r+'%</div></div>';}).join('')+'</div>';
+  return h;}
 function wxGet(){var ck='GPAPP_WX_'+(GP&&GP.p),c=LS.g(ck),box=$('wx');if(!box)return;
   if(c&&c.w)box.innerHTML=wxLine(c.w);
-  if(c&&Date.now()-c.ts<3600000)return;
+  if(c&&c.w&&c.w.f&&Date.now()-c.ts<3600000)return;
   var lat=parseFloat(CFG&&CFG.wlat),lon=parseFloat(CFG&&CFG.wlon),place=(GP&&GP.v)||(CFG&&CFG.gp)||'';
   var q=((CFG&&CFG.tal)||(GP&&GP.t)||'')+', '+((CFG&&CFG.dist)||(GP&&GP.d)||'')+', Maharashtra, IN';
   var loc=(!isNaN(lat)&&!isNaN(lon))?Promise.resolve({lat:lat,lon:lon}):
@@ -214,15 +229,20 @@ function wxGet(){var ck='GPAPP_WX_'+(GP&&GP.p),c=LS.g(ck),box=$('wx');if(!box)re
   loc.then(function(p){var u='lat='+p.lat+'&lon='+p.lon+'&appid='+WX_KEY+'&units=metric';
     return Promise.all([fetch('https://api.openweathermap.org/data/2.5/weather?'+u).then(function(r){return r.json();}),fetch('https://api.openweathermap.org/data/2.5/forecast?'+u).then(function(r){return r.json();})]);})
   .then(function(a){var cu=a[0],fc=a[1];if(!cu||!cu.main)throw 0;
-    var w={t:Math.round(cu.main.temp*10)/10,s:wxMr(cu.weather&&cu.weather[0]&&cu.weather[0].main),r:Math.round((((fc&&fc.list&&fc.list[0])||{}).pop||0)*100),h:cu.main.humidity,p:place};
-    LS.s(ck,{ts:Date.now(),w:w});var b=$('wx');if(b)b.innerHTML=wxLine(w);},
+    var wt=(cu.weather&&cu.weather[0])||{},fl=(fc&&fc.list)||[],r1=function(x){return Math.round(x*10)/10;};
+    var w={t:r1(cu.main.temp),fl:r1(cu.main.feels_like),tmin:Math.round(cu.main.temp_min),tmax:Math.round(cu.main.temp_max),s:wxMr(wt.main),i:wxIc(wt.main,wt.id),
+      r:Math.round(((fl[0]||{}).pop||0)*100),h:cu.main.humidity,wd:cu.wind?Math.round(cu.wind.speed*3.6):null,cl:cu.clouds?cu.clouds.all:null,pr:cu.main.pressure,
+      vi:cu.visibility!=null?Math.round(cu.visibility/100)/10:null,sr:cu.sys&&cu.sys.sunrise,ss:cu.sys&&cu.sys.sunset,p:place,u:Math.floor(Date.now()/1000),
+      f:fl.slice(0,5).map(function(x){var y=(x.weather&&x.weather[0])||{};return {d:x.dt,t:Math.round(x.main.temp),r:Math.round((x.pop||0)*100),i:wxIc(y.main,y.id)};})};
+    LS.s(ck,{ts:Date.now(),w:w});var b=$('wx');if(b){b.style.display='';b.innerHTML=wxLine(w);}},
   function(){var b=$('wx');if(b&&!b.innerHTML)b.style.display='none';});}
 function homeGrid(){var un=0;try{un=ntUnread();}catch(e){}
   var T=[['dakhla','📄','दाखला मागवा','#e3f0ff'],['sg','📝','स्वयंघोषणा-पत्र','#fff3e0'],['tax','💰','कर शोधा / भरा','#e6f4ea'],['nond','➕','नोंद करून द्या','#f3e5f5'],['comp','📣','तक्रार / सूचना','#fde8e8'],['mine','📋','माझ्या मागण्या / डाउनलोड','#e0f7fa'],['notice','📢','नोटीस बोर्ड','#fff8e1'],['web','🌐','वेबसाईट','#e8eaf6']];
   return '<div class="grid3">'+T.map(function(x){return '<button class="tile" onclick="tab(\''+x[0]+'\')"><span class="ic" style="background:'+x[3]+'">'+x[1]+'</span><span class="lb">'+x[2]+'</span>'+(x[0]==='notice'&&un?'<i class="bdg">'+un+'</i>':'')+'</button>';}).join('')+'</div>';}
+function saveMyWa(){var w=(($('hwa')||{}).value||'').replace(/\D/g,'');if(!/^[6-9]\d{9}$/.test(w)){showToast('१० अंकी वैध WhatsApp नंबर भरा');return;}SES.wa=w;LS.s('GPAPP_WA_'+SES.mob,w);LS.s(sesKey(),SES);try{regUser();}catch(e){}vHome();}
 function saveMyName(){var n=($('hnn').value||'').trim();if(!n)return;SES.name=n;LS.s('GPAPP_NAME_'+SES.mob,n);LS.s(sesKey(),SES);try{regUser();}catch(e){}
   try{http('POST',authUrl('update'),{idToken:SES.idToken,displayName:n,returnSecureToken:false});}catch(e){}vHome();}
-function vHome(){$('m').innerHTML='<div id="hn"></div><div id="hc"></div><div class="hello"><div class="hi">नमस्कार 🙏</div><div class="nm">'+(SES.name?E(SES.name):'नागरिक')+'</div><div class="mb">📱 '+E(SES.mob)+'</div></div>'+(SES.name?'':'<div class="card"><label style="margin-top:0">तुमचे नाव भरा (मुख्य पानावर दिसेल)</label><input id="hnn" autocomplete="name"><button class="p" onclick="saveMyName()">जतन करा</button></div>')+homeGrid()+'<div class="wx" id="wx">⏳ हवामान…</div>'+off();
+function vHome(){$('m').innerHTML='<div class="wxc" id="wx">⏳ हवामान…</div><div id="hn"></div><div id="hc"></div><div class="hello"><div class="hi">नमस्कार 🙏</div><div class="nm">'+(SES.name?E(SES.name):'नागरिक')+'</div><div class="mb">📱 '+E(SES.mob)+'</div></div>'+(SES.name?'':'<div class="card"><label style="margin-top:0">तुमचे नाव भरा (मुख्य पानावर दिसेल)</label><input id="hnn" autocomplete="name"><button class="p" onclick="saveMyName()">जतन करा</button></div>')+(SES.wa?'':'<div class="card"><label style="margin-top:0">📲 तुमचा WhatsApp नंबर भरा (दाखला / पावती यावर पाठवली जाईल)</label><input id="hwa" inputmode="numeric" maxlength="10" value="'+E(SES.mob||'')+'"><button class="p" onclick="saveMyWa()">जतन करा</button></div>')+homeGrid()+off();
   try{wxGet();}catch(e){}
   fsMineNond().then(function(l){var seen=LS.g('GPAPP_SEEN_'+GP.p)||[],h='';
     l.forEach(function(r){if((r.status==='done'||r.status==='notfound')&&seen.indexOf(r.code)<0)h+=nondNote(r,true);});
@@ -516,13 +536,20 @@ function taxPick2(r){
   if(du&&du.pend>0)body='<div class="msg inf" style="margin-top:8px">⏳ तुमचा ₹'+du.pend+' चा भरणा ग्रामपंचायतीकडे पडताळणीसाठी प्रलंबित आहे — तो वजा करून <b>उरलेली</b> रक्कम दाखवली आहे.</div>'+body;
   if(du&&du.appr>0)body='<div class="msg ok" style="margin-top:8px">✅ तुमचा ₹'+du.appr+' चा भरणा मंजूर झाला आहे — तो वजा करून उरलेली रक्कम दाखवली आहे.</div>'+body;
   if(paidUp)body+='<div class="msg ok">✅ तुमची कोणतीही थकबाकी नाही.</div>';
-  else body+='<div class="msg inf" style="margin-top:8px">ग्रामनिधी (घरपट्टी) व पाणीपट्टी यांचे <b>खाते वेगळे</b> आहे — प्रत्येकाची रक्कम व QR वेगळा. ज्याचा भरणा करायचा नाही त्याची रक्कम ० (किंवा रिकामी) ठेवा.</div>'+
-    ((!hasSplit||tg>0)?'<label>🏠 ग्रामनिधी (घरपट्टी) भरणार असलेली रक्कम (₹)</label><input id="t-ag" inputmode="numeric" value="'+(pg>0?pg:'')+'">':'')+
-    ((!hasSplit||tw>0)?'<label>💧 पाणीपट्टी भरणार असलेली रक्कम (₹)</label><input id="t-ap" inputmode="numeric" value="'+(pw>0?pw:'')+'">':'')+
-    '<label>भरणाऱ्याचे नाव</label><input id="t-n" value="'+E(SES.name)+'"><div id="f-m0"></div><button class="p" id="f-b0" onclick="taxNext()">पुढे — भरणा करा ➜</button>';
+  else body+='<div class="msg inf" style="margin-top:8px">ग्रामनिधी (घरपट्टी) व पाणीपट्टी यांचे <b>खाते वेगळे</b> आहे — प्रत्येकाची रक्कम व QR वेगळा. ज्याचा भरणा करायचा नाही त्याची रक्कम ० (किंवा रिकामी) ठेवा.<br>💡 <b>थोडीच रक्कम भरल्यास</b> ती आधी <b>मागील थकबाकीत</b> (घरपट्टी → दिवाबत्ती → आरोग्य → पडसर या क्रमाने), उरलेली <b>चालू</b> करात जमा होईल. सवलत फक्त वर दाखवलेली पूर्ण रक्कम भरल्यासच मिळते.</div>'+
+    ((!hasSplit||tg>0)?'<label>🏠 ग्रामनिधी (घरपट्टी) भरणार असलेली रक्कम (₹)</label><input id="t-ag" inputmode="numeric" oninput="taxDiscWarn()" value="'+(pg>0?pg:'')+'">':'')+
+    ((!hasSplit||tw>0)?'<label>💧 पाणीपट्टी भरणार असलेली रक्कम (₹)</label><input id="t-ap" inputmode="numeric" oninput="taxDiscWarn()" value="'+(pw>0?pw:'')+'">':'')+
+    '<div id="t-dw"></div><label>भरणाऱ्याचे नाव</label><input id="t-n" value="'+E(SES.name)+'"><div id="f-m0"></div><button class="p" id="f-b0" onclick="taxNext()">पुढे — भरणा करा ➜</button>';
   $('t-sel').innerHTML='<div class="card"><h2>निवडलेली मालमत्ता</h2><div class="msg ok" style="margin:0"><b>'+E(v.t)+'</b><div style="font-size:13px">'+E(v.s)+'</div></div>'+body+
    '<button class="s" style="width:100%;margin-top:8px" onclick="vTax()">दुसरी मालमत्ता शोधा</button></div>';
   window.scrollTo(0,document.body.scrollHeight);}
+function taxDiscWarn(){ // सवलत चालू असताना रक्कम बदलली तर — सवलत मिळणार नाही असा संदेश
+  var el=$('t-dw');if(!el||!CUR||!CUR.dc)return;var t=[];
+  var g=$('t-ag')?Math.round(+($('t-ag').value||0)):null,w=$('t-ap')?Math.round(+($('t-ap').value||0)):null;
+  if(g!==null&&g>0&&CUR.pg<CUR.fg&&g!==CUR.pg)t.push('🏠 ग्रामनिधी (घरपट्टी): सवलतीसह पूर्ण रक्कम ₹'+CUR.pg);
+  if(w!==null&&w>0&&CUR.pw<CUR.fw&&w!==CUR.pw)t.push('💧 पाणीपट्टी: सवलतीसह पूर्ण रक्कम ₹'+CUR.pw);
+  el.innerHTML=t.length?'<div class="msg err" style="margin-top:8px">⚠️ सवलत योजना चालू आहे ('+(CUR.dc.pm?'मागील '+CUR.dc.pm+'% सूट':'')+(CUR.dc.pc?(CUR.dc.pm?' + ':'')+'चालू '+CUR.dc.pc+'% सूट':'')+'). सवलत फक्त सवलतीनंतरची <b>पूर्ण</b> रक्कम भरल्यासच मिळते:<br>'+t.join('<br>')+'<br>रक्कम बदलल्यास <b>सवलत मिळणार नाही</b> — भरलेली रक्कम मूळ (सवलतीशिवाय) थकबाकीत आधी मागील, मग चालू करात जमा होईल.</div>':'';
+}
 function taxNext(){var c=CFG||{},du=CUR.du,g=0,w=0,a=0;
   if(CUR.split){
     g=$('t-ag')?Math.round(+($('t-ag').value||0)):0;w=$('t-ap')?Math.round(+($('t-ap').value||0)):0;
