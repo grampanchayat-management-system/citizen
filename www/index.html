@@ -146,6 +146,13 @@ function regGet(vc){ // केंद्रीय नोंदणी (gp-registry
     return r.json().then(function(j){var f=(j&&j.fields)||{},o={};['s','d','t','v','p','k','w'].forEach(function(k){o[k]=(f[k]&&f[k].stringValue)||'';});return o;});
   });
 }
+// त्या गावाच्या संगणक-सॉफ्टवेअरचा मोफत डेमो कालावधी संपला असेल, तर नागरिक ॲपसुद्धा त्या गावासाठी बंद दाखवतो
+function demoGet(vc){
+  return fetch('https://firestore.googleapis.com/v1/projects/'+REG_P+'/databases/(default)/documents/demo_state/'+encodeURIComponent(vc)+'?key='+REG_K).then(function(r){
+    if(!r.ok)return {locked:false};
+    return r.json().then(function(j){var f=(j&&j.fields)||{};return {locked:!!(f.locked&&f.locked.booleanValue)};});
+  },function(){return {locked:false};});
+}
 function pgo(){var s=$('ps').value,d=$('pd').value,t=$('pt').value,v=$('pv').value;if(!(s&&d&&t&&v))return msg('pm','राज्य, जिल्हा, तालुका व गाव चारही निवडा','err');
   var g=DIR.gps.filter(function(x){return x.s===s&&x.d===d&&x.t===t&&x.v===v;})[0],vc=VCODE[v];
   var done=function(g){
@@ -153,7 +160,13 @@ function pgo(){var s=$('ps').value,d=$('pd').value,t=$('pt').value,v=$('pv').val
     GP=g;LS.s('GPAPP_GP',g);SES=LS.g(sesKey());SES?enter():authScreen();};
   if(!vc)return done(g);
   msg('pm','⏳ तपासत आहे…','inf');
-  regGet(vc).then(function(r){done(r&&r.p?r:g);},function(){if(g)return done(g);msg('pm','इंटरनेट/नोंदणी तपासता आली नाही — नेट चालू आहे का ते पाहून पुन्हा प्रयत्न करा.','err');});
+  regGet(vc).then(function(r){
+    var gf=r&&r.p?r:g;
+    demoGet(vc).then(function(d){
+      if(d&&d.locked)return msg('pm','"'+v+'" ग्रामपंचायतीचा सॉफ्टवेअर परवाना सध्या कार्यान्वित नाही — ग्रामपंचायत कार्यालयाशी संपर्क साधा.','err');
+      done(gf);
+    });
+  },function(){if(g)return done(g);msg('pm','इंटरनेट/नोंदणी तपासता आली नाही — नेट चालू आहे का ते पाहून पुन्हा प्रयत्न करा.','err');});
 }
 function changeVillage(){fcmOff();ntStop();LS.d('GPAPP_GP');GP=null;SES=null;CFG=null;pickScreen();}
 function logout(){fcmOff();ntStop();if(GP)LS.d(sesKey());SES=null;authScreen();}

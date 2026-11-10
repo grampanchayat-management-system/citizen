@@ -29,5 +29,19 @@ service cloud.firestore {
         && getAfter(/databases/$(database)/documents/claims/$(vcode)).data.code == 'GPAPP-ALL';
       allow delete: if false;
     }
+
+    // डेमो-कालावधी स्थिती: संगणक-सॉफ्टवेअर लिहितो (डेमो मर्यादा ओलांडली की locked=true, License
+    // Key टाकल्यावर locked=false), नागरिक ॲप फक्त वाचते — locked=true असेल तर त्या गावासाठी स्वतःला
+    // बंद दाखवते. हे इतर कोड (claims/{vcode}=GPAPP-ALL) सोबतच्या batched-commit युक्तीनेच लिहिता येते,
+    // जसे वरील gps/{vcode} साठी आधीच वापरलेले आहे — तेवढेच संरक्षण (obscurity-level, बँकिंग-ग्रेड नाही).
+    match /demo_state/{vcode} {
+      allow get: if true;
+      allow list: if false;
+      allow create, update: if vcode.matches('[0-9]{4,8}')
+        && request.resource.data.keys().hasOnly(['locked','firstRunAt','hwId','upd'])
+        && request.resource.data.locked is bool
+        && getAfter(/databases/$(database)/documents/claims/$(vcode)).data.code == 'GPAPP-ALL';
+      allow delete: if false;
+    }
   }
 }
