@@ -327,7 +327,7 @@ function loadKind(kind,force){
 }
 function dmy(s){var m=/^(\d{4})-(\d{2})-(\d{2})/.exec(s||'');return m?m[3]+'-'+m[2]+'-'+m[1]:(s||'');}
 function rowView(kind,r){ // {t: शीर्षक, s: उपशीर्षक}
-  if(kind==='n8')return {t:r[1],s:'अ.क्र. '+r[0]+(r[3]?' · मिळकत '+r[3]:'')+(r[4]?' · '+r[4]:'')+(r[2]&&r[2]!==r[1]?' · भोगवटदार: '+r[2]:'')};
+  if(kind==='n8')return {t:r[1],s:(r.mem?'📦 '+r.mem.length+' मिळकती एकत्र · ':'')+'अ.क्र. '+r[0]+(r[3]?' · मिळकत '+r[3]:'')+(r[4]?' · '+r[4]:'')+(r[2]&&r[2]!==r[1]?' · भोगवटदार: '+r[2]:'')};
   if(kind==='birth')return {t:r[1],s:'जन्म: '+dmy(r[2])+(r[3]?' · वडील: '+r[3]:'')+(r[4]?' · आई: '+r[4]:'')};
   if(kind==='death')return {t:r[1],s:'मृत्यू: '+dmy(r[2])+(r[3]?' · वडील: '+r[3]:'')+(r[4]?' · पती/पत्नी: '+r[4]:'')};
   if(kind==='vivah')return {t:r[1]+' व '+r[2],s:'विवाह: '+dmy(r[3])};
@@ -335,9 +335,17 @@ function rowView(kind,r){ // {t: शीर्षक, s: उपशीर्षक
   if(kind==='nodue')return {t:r[1],s:'येणे बाकी नाही दाखला'};
   return {t:r[1],s:r[2]?'वय '+r[2]:''};
 }
-function dueOf(r){if(!(r.length>=7&&r[5]!=null&&r[6]!=null))return null;var o={p:+r[5]||0,c:+r[6]||0};
+function dueRaw(r){if(!(r.length>=7&&r[5]!=null&&r[6]!=null))return null;var o={p:+r[5]||0,c:+r[6]||0};
   if(r.length>=11){o.g={p:+r[7]||0,c:+r[8]||0};o.w={p:+r[9]||0,c:+r[10]||0};} // ग्रामनिधी (घरपट्टी) व पाणीपट्टी वेगळी
-  return adjDue(o,String(r[0]));}
+  return o;}
+function dueOf(r){
+  if(r.mem){ // एकाच व्यक्तीच्या (मालक+भोगवटादार) अनेक मिळकती — बेरीज
+    var t=null;for(var i=0;i<r.mem.length;i++){var x=dueRaw(r.mem[i]);if(!x)return null;
+      if(!t)t={p:0,c:0,g:x.g?{p:0,c:0}:null,w:x.w?{p:0,c:0}:null};
+      t.p+=x.p;t.c+=x.c;if(t.g&&x.g){t.g.p+=x.g.p;t.g.c+=x.g.c;}if(t.w&&x.w){t.w.p+=x.w.p;t.w.c+=x.w.c;}}
+    if(t&&!t.g)delete t.g;if(t&&!t.w)delete t.w;
+    return t?adjDue(t,r.anoList):null;}
+  var o=dueRaw(r);return o?adjDue(o,String(r[0])):null;}
 // ── थकबाकी "लाइव्ह": यादीतील रकमेतून आधी भरलेले पण यादीत अजून न उतरलेले भरणे वजा ──
 //   • ⏳ पडताळणीसाठी प्रलंबित (paid_pending)  • ✅ मंजूर, पण यादी (upd) नंतर मंजूर झालेले
 var MYT={t:0,l:[],upd:''};
@@ -347,8 +355,9 @@ function refreshMyTax(upd,force){MYT.upd=upd||'';if(!force&&Date.now()-MYT.t<100
 function discNow(){var c=(CFG&&CFG.disc)||null;if(!c||!c.on)return null;var t=new Date().toISOString().slice(0,10);
   if(c.from&&t<c.from)return null;if(c.to&&t>c.to)return null;var pm=+c.pm||0,pc=+c.pc||0;return (pm>0||pc>0)?{pm:pm,pc:pc,to:c.to||'',note:c.note||''}:null;}
 function discPay(x,d){return Math.round((x.p||0)*(1-d.pm/100)+(x.c||0)*(1-d.pc/100));}
-function myTaxAdj(ano){var a={g:0,w:0,t:0,pend:0,appr:0};
-  (MYT.l||[]).forEach(function(q){if(q.kind!=='tax'||String(q.pno)!==String(ano))return;
+function myTaxAdj(ano){var a={g:0,w:0,t:0,pend:0,appr:0},set=String(ano).split(',');
+  (MYT.l||[]).forEach(function(q){if(q.kind!=='tax')return;
+    var ids=q.anos?String(q.anos).split(','):[String(q.pno)],hit=false;ids.forEach(function(x){if(set.indexOf(x)>=0)hit=true;});if(!hit)return;
     var pend=q.status==='paid_pending',appr=q.status==='approved'&&MYT.upd&&String(q.decidedAt||'')>String(MYT.upd);
     if(!pend&&!appr)return;
     var g=Math.round(+q.amtGh||0),w=Math.round(+q.amtPa||0),sp=(q.amtGh!=null||q.amtPa!=null);
@@ -363,6 +372,18 @@ function adjDue(o,ano){var a=myTaxAdj(ano);o.pend=a.pend;o.appr=a.appr;if(!(a.g|
   else{cutDue(o,a.g+a.w+a.t);}
   return o;}
 var SRCH={kind:'',res:[],tok:0};
+// कर शोध: ज्या मिळकतींचा गट (r[12] = "1,4,2") आहे त्या सर्व एकाच ओळीत — थकबाकीची बेरीज
+function groupTax(res,ix){var out=[],seen={},by={};
+  ix.rows.forEach(function(x){by[String(x.r[0])]=x.r;});
+  res.forEach(function(r){var g=r[12];
+    if(!g){out.push(r);return;}
+    if(seen[g])return;seen[g]=1;
+    var ls=String(g).split(','),mem=[];ls.forEach(function(a){if(by[a]&&by[a][11]!=='X')mem.push(by[a]);});
+    if(mem.length<2){out.push(r);return;}
+    var roads=[],pn=[];mem.forEach(function(m){if(m[4]&&roads.indexOf(m[4])<0)roads.push(m[4]);if(m[3]&&pn.indexOf(m[3])<0)pn.push(m[3]);});
+    var m0=mem[0],nr=[mem.map(function(m){return m[0];}).join(','),m0[1],m0[2],pn.join(', '),roads.join(', ')];
+    nr.mem=mem;nr.anoList=nr[0];out.push(nr);});
+  return out;}
 function doSearch(kind,q,outId,pickFn,limit){
   var o=$(outId);if(!o)return;q=normQ(q);
   if(q.length<2){o.innerHTML='<small>कमीत कमी २ अक्षरे टाका</small>';SRCH.res=[];return;}
@@ -372,6 +393,7 @@ function doSearch(kind,q,outId,pickFn,limit){
     var toks=q.split(' '),res=[];
     for(var i=0;i<ix.rows.length;i++){var x=ix.rows[i],ok=true;if(kind==='n8'&&pickFn==='taxPick'&&x.r[11]==='X')continue; // कर सवलत मालमत्ता कर यादीत नाहीत
       for(var k=0;k<toks.length;k++){if(x.h.indexOf(toks[k])<0){ok=false;break;}}if(ok){res.push(x.r);if(res.length>=(limit||30)+1)break;}}
+    if(kind==='n8'&&pickFn==='taxPick')res=groupTax(res,ix);
     SRCH.res=res.slice(0,limit||30);SRCH.kind=kind;
     if(!res.length){o.innerHTML='<div class="msg err">"'+E(q)+'" या नावाची नोंद सापडली नाही.</div><div id="nofound"></div>';var nf=$('nofound');if(nf)nf.innerHTML=nofoundBtn(kind);return;}
     o.innerHTML=SRCH.res.map(function(r,i){var v=rowView(kind,r),du=kind==='n8'?dueOf(r):null;
@@ -533,7 +555,7 @@ function taxPick(i){
   loadKind('n8',false).then(function(ix){return refreshMyTax(ix&&ix.upd,true);}).then(function(){taxPick2(r0);},function(){taxPick2(r0);});}
 function taxPick2(r){
   if(CUR.code)return;var v=rowView('n8',r),du=dueOf(r),i=0;
-  CUR.pno=String(r[0]);CUR.owner=r[1];CUR.tot=du?du.p+du.c:null;CUR.du=du;CUR.split=true;$('t-res').innerHTML='';
+  CUR.pno=r.mem?String(r.mem[0][0]):String(r[0]);CUR.anos=r.mem?r.anoList:'';CUR.owner=r[1];CUR.tot=du?du.p+du.c:null;CUR.du=du;CUR.split=true;$('t-res').innerHTML='';
   var hasSplit=!!(du&&du.g),tg=hasSplit?du.g.p+du.g.c:0,tw=hasSplit&&du.w?du.w.p+du.w.c:0,paidUp=!!(du&&du.p+du.c<=0),body='',dc=hasSplit?discNow():null,pg=tg,pw=tw;
   if(dc){pg=discPay(du.g,dc);pw=du.w?discPay(du.w,dc):0;}CUR.dc=dc;CUR.pg=pg;CUR.pw=pw;CUR.fg=tg;CUR.fw=tw;
   var dcBox=(dc&&(tg+tw)>pg+pw)?'<div style="margin-top:8px;border:2px dashed #2e7d32;border-radius:10px;padding:10px;background:#F1FFF1"><div style="font-weight:800;color:#c62828">🎉 '+E(dc.note||'सध्या कर सवलत योजना लागू आहे!')+'</div><div style="font-size:13px;margin-top:2px">मागील थकबाकीवर '+dc.pm+'% सवलत'+(dc.pc?' + चालू रकमेवर '+dc.pc+'% सवलत':'')+'</div><div style="font-size:22px;font-weight:900;color:#1b7a1b;margin-top:4px">तुमची बचत ₹'+((tg+tw)-(pg+pw))+'</div><div style="font-size:12px;color:#8a6d3b;text-decoration:line-through">सवलतीशिवाय रक्कम ₹'+(tg+tw)+'</div>'+(dc.to?'<div style="font-size:12.5px;margin-top:2px">⏳ दि. '+dmy(dc.to)+' पर्यंत</div>':'')+'<div style="font-size:12.5px;margin-top:4px">खालील सवलतीसह रक्कम तशीच भरल्यास सवलत मिळेल व बाकी ०. रक्कम बदलल्यास सवलत लागू होत नाही.</div></div>':'';
@@ -592,7 +614,7 @@ function taxNext(){var c=CFG||{},du=CUR.du,g=0,w=0,a=0;
     $('payStep').innerHTML=h;$('f-b0').style.display='none';window.scrollTo(0,document.body.scrollHeight);},
     function(e){$('f-b0').disabled=false;msg('f-m0',errText(e),'err');});}
 function taxSend(){
-  var d={uid:SES.uid,kind:'tax',code:CUR.code,amount:CUR.amount,pno:CUR.pno,rname:CUR.owner,name:CUR.payer||CUR.owner,mob:SES.mob,status:'paid_pending',ts:new Date().toISOString()};
+  var d={uid:SES.uid,kind:'tax',code:CUR.code,amount:CUR.amount,pno:CUR.pno,anos:CUR.anos||'',rname:CUR.owner,name:CUR.payer||CUR.owner,mob:SES.mob,status:'paid_pending',ts:new Date().toISOString()};
   if(CUR.split){
     var ug=$('f-utr')?($('f-utr').value||'').trim():'',up=$('f-utrPa')?($('f-utrPa').value||'').trim():'';
     if(CUR.aG>0&&!ug&&!CUR.shot)return msg('f-m','ग्रामनिधी (घरपट्टी) साठी UTR क्रमांक किंवा स्क्रीनशॉट द्या','err');
